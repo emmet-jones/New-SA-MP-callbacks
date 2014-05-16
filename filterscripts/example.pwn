@@ -72,7 +72,7 @@ public OnPlayerTargetPlayer(playerid, targetid, weaponid)
 	return 1;
 }
 
-public OnPlayerDisableCursor(playerid)
+public OnPlayerDisableCursor(playerid, color)
 {
 	return 1;
 }
@@ -80,4 +80,9 @@ public OnPlayerDisableCursor(playerid)
 public OnPlayerAntiReload(playerid, weaponid)
 {
 	return 1;
+}
+
+public OnPlayerAnimationFinish(playerid, animlib[], animname[])
+{
+    return 1;
 }
