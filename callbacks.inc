@@ -28,6 +28,7 @@ enum e_cbPlayerData {
   	e_cbDrunk,
   	e_cbTarget,
   	e_cbAnimation,
+  	e_cbSelectColor,
 	Float:e_cbHealth,
 	Float:e_cbPacket,
 	Float:e_cbPosition[3]
@@ -154,7 +155,7 @@ forward OnPlayerFriendlyFire(playerid, targetid, weaponid);
 forward OnPlayerTargetPlayer(playerid, targetid, weaponid);
 
 // Called when a player explicitly disables textdraw selection mode.
-forward OnPlayerDisableCursor(playerid);
+forward OnPlayerDisableCursor(playerid, hovercolor);
 
 // Called when a player shoots more ammo than their weapon's clip can hold.
 forward OnPlayerAntiReload(playerid, weaponid);
@@ -194,12 +195,16 @@ stock CB_ApplyAnimation(playerid, animlib[], animname[], Float:fDelta, loop, loc
 
 stock CB_SelectTextDraw(playerid, hovercolor)
 {
+    g_cbCallbackData[playerid][e_cbSelectColor] = hovercolor;
+
 	CB_SetPlayerFlag(playerid, e_cbSelection, true);
 	return SelectTextDraw(playerid, hovercolor);
 }
 
 stock CB_CancelSelectTextDraw(playerid)
 {
+    g_cbCallbackData[playerid][e_cbSelectColor] = 0;
+
 	CB_SetPlayerFlag(playerid, e_cbSelection, false);
 	return CancelSelectTextDraw(playerid);
 }
@@ -288,6 +293,7 @@ public OnPlayerDisconnect(playerid, reason)
   	g_cbCallbackData[playerid][e_cbDrunk] = 0;
   	g_cbCallbackData[playerid][e_cbTarget] = 0;
   	g_cbCallbackData[playerid][e_cbAnimation] = 0;
+  	g_cbCallbackData[playerid][e_cbSelectColor] = 0;
  	g_cbCallbackData[playerid][e_cbHealth] = 100.0;
  	g_cbCallbackData[playerid][e_cbPacket] = 0.0;
  	
@@ -547,8 +553,10 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 public OnPlayerClickTextDraw(playerid, Text:clickedid)
 {
 	if ((IsCallbackUsed(CB_OnPlayerDisableCursor)) && (clickedid == Text:INVALID_TEXT_DRAW && g_aCallbackFlags[playerid] & e_cbSelection))
-	    CallLocalFunction("OnPlayerDisableCursor", "d", playerid);
-
+	{
+	    CB_SetPlayerFlag(playerid, e_cbSelection, false);
+	    CallLocalFunction("OnPlayerDisableCursor", "dd", playerid, g_cbCallbackData[playerid][e_cbSelectColor]);
+	}
 	#if defined CB_OnPlayerClickTextDraw
 		return CB_OnPlayerClickTextDraw(playerid, clickedid);
 	#else
