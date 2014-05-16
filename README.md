@@ -48,10 +48,13 @@ forward OnPlayerFriendlyFire(playerid, targetid, weaponid);
 forward OnPlayerTargetPlayer(playerid, targetid, weaponid);
 
 // Called when a player explicitly disables textdraw selection mode.
-forward OnPlayerDisableCursor(playerid);
+forward OnPlayerDisableCursor(playerid, hovercolor);
 
-// Calls when a player shoots more ammo than their weapon's clip can hold.
+// Called when a player shoots more ammo than their weapon's clip can hold.
 forward OnPlayerAntiReload(playerid, weaponid);
+
+// Called when a player's animation finishes.
+forward OnPlayerAnimationFinish(playerid, animlib[], animname[]);
 ```
 
 Functions
