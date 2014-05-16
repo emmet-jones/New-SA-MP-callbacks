@@ -738,3 +738,4 @@ public CB_TabTimer()
 #if defined CB_OnPlayerClickTextDraw
 	forward CB_OnPlayerClickTextDraw(playerid, Text:clickedid);
 #endif
+
