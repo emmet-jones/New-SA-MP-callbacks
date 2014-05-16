@@ -27,6 +27,7 @@ enum e_cbPlayerData {
   	e_cbFrames,
   	e_cbDrunk,
   	e_cbTarget,
+  	e_cbAnimation,
 	Float:e_cbHealth,
 	Float:e_cbPacket,
 	Float:e_cbPosition[3]
@@ -38,7 +39,8 @@ enum e_cbPlayerFlags (<<= 1) {
 	e_cbUpdate,
 	e_cbPaused,
 	e_cbHolding,
-	e_cbSelection
+	e_cbSelection,
+	e_cbSetAnim
 };
 
 // Callback flags
@@ -57,7 +59,8 @@ enum e_cbCallbackFlags (<<= 1) {
 	CB_OnPlayerFriendlyFire,
 	CB_OnPlayerTargetPlayer,
 	CB_OnPlayerDisableCursor,
-	CB_OnPlayerAntiReload
+	CB_OnPlayerAntiReload,
+	CB_OnPlayerAnimationFinish
 };
 
 static
@@ -153,8 +156,11 @@ forward OnPlayerTargetPlayer(playerid, targetid, weaponid);
 // Called when a player explicitly disables textdraw selection mode.
 forward OnPlayerDisableCursor(playerid);
 
-// Calls when a player shoots more ammo than their weapon's clip can hold.
+// Called when a player shoots more ammo than their weapon's clip can hold.
 forward OnPlayerAntiReload(playerid, weaponid);
+
+// Called when an animation is finished.
+forward OnPlayerAnimationFinish(playerid, animlib[], animname[]);
 
 stock IsPlayerNearVending(playerid)
 {
@@ -177,6 +183,14 @@ stock GetPlayerFPS(playerid)
 
 stock GetPlayerPausedTime(playerid)
 	return (g_cbCallbackData[playerid][e_cbTime]);
+
+stock CB_ApplyAnimation(playerid, animlib[], animname[], Float:fDelta, loop, lockx, locky, freeze, time, forcesync = 0)
+{
+	ApplyAnimation(playerid, animlib, animname, fDelta, loop, lockx, locky, freeze, time, forcesync);
+
+ 	SetTimerEx("CB_UpdateAnim", 100, false, "d", playerid);
+ 	return 1;
+}
 
 stock CB_SelectTextDraw(playerid, hovercolor)
 {
@@ -246,7 +260,8 @@ stock static CB_SearchCallbacks()
 		{!"OnPlayerFriendlyFire", CB_OnPlayerFriendlyFire},
 	    {!"OnPlayerTargetPlayer", CB_OnPlayerTargetPlayer},
 		{!"OnPlayerDisableCursor", CB_OnPlayerDisableCursor},
-		{!"OnPlayerAntiReload", CB_OnPlayerAntiReload}
+		{!"OnPlayerAntiReload", CB_OnPlayerAntiReload},
+		{!"OnPlayerAnimationFinish", CB_OnPlayerAnimationFinish}
 	};
 	for (new i = 0; i != sizeof(g_aCustomCallbacks); i ++)
 	{
@@ -255,6 +270,32 @@ stock static CB_SearchCallbacks()
 
 		g_CallbackInfo |= g_aCustomCallbacks[i][e_CallbackFlag];
 	}
+}
+
+public OnPlayerDisconnect(playerid, reason)
+{
+	if (CB_GetPlayerFlag(playerid, e_cbHolding))
+	{
+	    KillTimer(g_cbCallbackData[playerid][e_cbTimer]);
+	}
+	g_aCallbackFlags[playerid] = e_cbPlayerFlags:0;
+
+    g_cbCallbackData[playerid][e_cbTime] = 0;
+	g_cbCallbackData[playerid][e_cbPresses] = 0;
+	g_cbCallbackData[playerid][e_cbLast] = 0;
+ 	g_cbCallbackData[playerid][e_cbVending] = 0;
+  	g_cbCallbackData[playerid][e_cbFrames] = 0;
+  	g_cbCallbackData[playerid][e_cbDrunk] = 0;
+  	g_cbCallbackData[playerid][e_cbTarget] = 0;
+  	g_cbCallbackData[playerid][e_cbAnimation] = 0;
+ 	g_cbCallbackData[playerid][e_cbHealth] = 100.0;
+ 	g_cbCallbackData[playerid][e_cbPacket] = 0.0;
+ 	
+ 	#if defined CB_OnPlayerDisconnect
+ 	    return CB_OnPlayerDisconnect(playerid, reason);
+	#else
+	    return 1;
+	#endif
 }
 
 public OnFilterScriptInit()
@@ -435,6 +476,20 @@ public OnPlayerUpdate(playerid)
 			g_cbCallbackData[playerid][e_cbPacket] = packet;
 		}
 	}
+	if (IsCallbackUsed(CB_OnPlayerAnimationFinish))
+	{
+	    if (CB_GetPlayerFlag(playerid, e_cbSetAnim) && g_cbCallbackData[playerid][e_cbAnimation] != GetPlayerAnimationIndex(playerid))
+	    {
+	        static
+	            animname[32],
+	            animlib[32];
+	    
+	        CB_SetPlayerFlag(playerid, e_cbSetAnim, false);
+	        
+	        GetAnimationName(g_cbCallbackData[playerid][e_cbAnimation], animlib, sizeof(animlib), animname, sizeof(animname));
+	        CallLocalFunction("OnPlayerAnimationFinish", "dss", playerid, animlib, animname);
+	    }
+	}
 	CB_SetPlayerFlag(playerid, e_cbUpdate, true);
 	g_cbCallbackData[playerid][e_cbLast] = GetTickCount();
 
@@ -501,6 +556,16 @@ public OnPlayerClickTextDraw(playerid, Text:clickedid)
 	#endif
 }
 
+forward CB_UpdateAnim(playerid);
+public CB_UpdateAnim(playerid)
+{
+    g_cbCallbackData[playerid][e_cbAnimation] = GetPlayerAnimationIndex(playerid);
+
+	CB_SetPlayerFlag(playerid, e_cbSetAnim, true);
+
+	return 1;
+}
+
 forward CB_HoldingTimer(playerid, key);
 public CB_HoldingTimer(playerid, key)
 {
@@ -555,6 +620,12 @@ public CB_TabTimer()
 	}
 }
 
+#if defined _ALS_ApplyAnimation
+	#undef ApplyAnimation
+#else
+	#define _ALS_ApplyAnimation
+#endif
+
 #if defined _ALS_SelectTextDraw
 	#undef SelectTextDraw
 #else
@@ -577,6 +648,12 @@ public CB_TabTimer()
 	#undef OnGameModeInit
 #else
 	#define _ALS_OnGameModeInit
+#endif
+
+#if defined _ALS_OnPlayerDisconnect
+	#undef OnPlayerDisconnect
+#else
+	#define _ALS_OnPlayerDisconnect
 #endif
 
 #if defined _ALS_OnPlayerStateChange
@@ -609,11 +686,13 @@ public CB_TabTimer()
 	#define _ALS_OnPlayerClickTextDraw
 #endif
 
+#define ApplyAnimation          CB_ApplyAnimation
 #define SelectTextDraw          CB_SelectTextDraw
 #define CancelSelectTextDraw    CB_CancelSelectTextDraw
 
 #define OnFilterScriptInit  	CB_OnFilterScriptInit
 #define OnGameModeInit 			CB_OnGameModeInit
+#define OnPlayerDisconnect      CB_OnPlayerDisconnect
 #define OnPlayerUpdate 			CB_OnPlayerUpdate
 #define OnPlayerStateChange  	CB_OnPlayerStateChange
 #define OnPlayerKeyStateChange  CB_OnPlayerKeyStateChange
@@ -630,6 +709,10 @@ public CB_TabTimer()
 
 #if defined CB_OnGameModeInit
 	forward CB_OnGameModeInit();
+#endif
+
+#if defined CB_OnPlayerDisconnect
+	forward CB_OnPlayerDisconnect(playerid, reason);
 #endif
 
 #if defined CB_OnPlayerStateChange
