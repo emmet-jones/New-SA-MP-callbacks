@@ -1,7 +1,7 @@
 New-SA-MP-callbacks
 ===================
 
-Here is a collection of useful callbacks for SA-MP, that works with every SA-MP version.
+This is a collection of useful callbacks for SA-MP, that works with every SA-MP version.
 
 List of Callbacks
 ===================
