@@ -297,6 +297,11 @@ public OnPlayerDisconnect(playerid, reason)
  	g_cbCallbackData[playerid][e_cbHealth] = 100.0;
  	g_cbCallbackData[playerid][e_cbPacket] = 0.0;
  	
+ 	for (new i = 0; i < 5; i ++) {
+ 	    g_aFiredShots[playerid][i] = 0;
+	}
+	g_aLastWeapon[playerid] = 0;
+	
  	#if defined CB_OnPlayerDisconnect
  	    return CB_OnPlayerDisconnect(playerid, reason);
 	#else
@@ -345,7 +350,7 @@ public OnPlayerWeaponShot(playerid, weaponid, hittype, hitid, Float:fX, Float:fY
 		new
 			index = (weaponid - 22);
 
-		if (++ g_aFiredShots[playerid][g_aClipSlots[index]] > g_aClipData[index] && (g_aFiredShots[playerid][g_aClipSlots[index]] - g_aClipData[index]) > 2)
+		if (++ g_aFiredShots[playerid][g_aClipSlots[index]] > g_aClipData[index] && (g_aFiredShots[playerid][g_aClipSlots[index]] - g_aClipData[index]) >= 5)
 		{
 		    g_aFiredShots[playerid][g_aClipSlots[index]] = 0;
 			CallLocalFunction("OnPlayerAntiReload", "dd", playerid, weaponid);
@@ -377,19 +382,6 @@ public OnPlayerUpdate(playerid)
 	{
 	    case PLAYER_STATE_ONFOOT:
 	    {
-			if (IsCallbackUsed(CB_OnPlayerAntiReload))
-			{
-				if ((weaponid = GetPlayerWeapon(playerid)) != g_aLastWeapon[playerid])
-				{
-		    		if ((22 <= g_aLastWeapon[playerid] <= 34) && (g_aLastWeapon[playerid] != 25 && g_aLastWeapon[playerid] != 33 && g_aLastWeapon[playerid] != 34))
-						g_aFiredShots[playerid][g_aClipSlots[g_aLastWeapon[playerid] - 22]] = 0;
-
-					g_aLastWeapon[playerid] = weaponid;
-				}
-				else if ((22 <= weaponid <= 34) && (weaponid != 25 && weaponid != 33 && weaponid != 34) && GetPlayerWeaponState(playerid) == WEAPONSTATE_RELOADING) {
-					g_aFiredShots[playerid][g_aClipSlots[weaponid - 22]] = 0;
-				}
-			}
 		  	if (IsCallbackUsed(CB_OnPlayerTargetPlayer))
 			{
 		    	if (g_cbCallbackData[playerid][e_cbTarget] == 0 && GetPlayerTargetPlayer(playerid) == INVALID_PLAYER_ID)
@@ -489,12 +481,27 @@ public OnPlayerUpdate(playerid)
 	        static
 	            animname[32],
 	            animlib[32];
-	    
+
 	        CB_SetPlayerFlag(playerid, e_cbSetAnim, false);
-	        
+
 	        GetAnimationName(g_cbCallbackData[playerid][e_cbAnimation], animlib, sizeof(animlib), animname, sizeof(animname));
 	        CallLocalFunction("OnPlayerAnimationFinish", "dss", playerid, animlib, animname);
 	    }
+	}
+	if (IsCallbackUsed(CB_OnPlayerAntiReload))
+	{
+	    weaponid = GetPlayerWeapon(playerid);
+
+		if (g_aLastWeapon[playerid] != weaponid)
+		{
+    		if ((22 <= g_aLastWeapon[playerid] <= 34) && (g_aLastWeapon[playerid] != 25 && g_aLastWeapon[playerid] != 33 && g_aLastWeapon[playerid] != 34))
+				g_aFiredShots[playerid][g_aClipSlots[g_aLastWeapon[playerid] - 22]] = 0;
+
+			g_aLastWeapon[playerid] = weaponid;
+		}
+		if ((22 <= weaponid <= 34) && (weaponid != 25 && weaponid != 33 && weaponid != 34) && GetPlayerWeaponState(playerid) == WEAPONSTATE_RELOADING) {
+			g_aFiredShots[playerid][g_aClipSlots[weaponid - 22]] = 0;
+		}
 	}
 	CB_SetPlayerFlag(playerid, e_cbUpdate, true);
 	g_cbCallbackData[playerid][e_cbLast] = GetTickCount();
@@ -738,4 +745,3 @@ public CB_TabTimer()
 #if defined CB_OnPlayerClickTextDraw
 	forward CB_OnPlayerClickTextDraw(playerid, Text:clickedid);
 #endif
-
