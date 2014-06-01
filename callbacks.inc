@@ -177,7 +177,7 @@ stock IsPlayerNearVending(playerid)
 }
 
 stock IsPlayerPaused(playerid)
-	return GetCallbackFlag(playerid, CB_PAUSED);
+	return (g_aCallbackFlags[playerid] & e_cbPaused);
 
 stock GetPlayerFPS(playerid)
 	return (g_cbCallbackData[playerid][e_cbFrames]);
@@ -296,12 +296,12 @@ public OnPlayerDisconnect(playerid, reason)
   	g_cbCallbackData[playerid][e_cbSelectColor] = 0;
  	g_cbCallbackData[playerid][e_cbHealth] = 100.0;
  	g_cbCallbackData[playerid][e_cbPacket] = 0.0;
- 	
+
  	for (new i = 0; i < 5; i ++) {
  	    g_aFiredShots[playerid][i] = 0;
 	}
 	g_aLastWeapon[playerid] = 0;
-	
+
  	#if defined CB_OnPlayerDisconnect
  	    return CB_OnPlayerDisconnect(playerid, reason);
 	#else
