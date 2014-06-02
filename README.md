@@ -55,6 +55,9 @@ forward OnPlayerAntiReload(playerid, weaponid);
 
 // Called when a player's animation finishes.
 forward OnPlayerAnimationFinish(playerid, animlib[], animname[]);
+
+// Called when a player is reloading their weapon.
+forward OnPlayerReloadWeapon(playerid, weaponid, ammo);
 ```
 
 Functions
