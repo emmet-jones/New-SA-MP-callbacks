@@ -41,7 +41,8 @@ enum e_cbPlayerFlags (<<= 1) {
 	e_cbPaused,
 	e_cbHolding,
 	e_cbSelection,
-	e_cbSetAnim
+	e_cbSetAnim,
+	e_cbReloading
 };
 
 // Callback flags
@@ -61,7 +62,8 @@ enum e_cbCallbackFlags (<<= 1) {
 	CB_OnPlayerTargetPlayer,
 	CB_OnPlayerDisableCursor,
 	CB_OnPlayerAntiReload,
-	CB_OnPlayerAnimationFinish
+	CB_OnPlayerAnimationFinish,
+	CB_OnPlayerReloadWeapon
 };
 
 static
@@ -162,6 +164,9 @@ forward OnPlayerAntiReload(playerid, weaponid);
 
 // Called when an animation is finished.
 forward OnPlayerAnimationFinish(playerid, animlib[], animname[]);
+
+// Called when a player is reloading their weapon.
+forward OnPlayerReloadWeapon(playerid, weaponid, ammo);
 
 stock IsPlayerNearVending(playerid)
 {
@@ -266,7 +271,8 @@ stock static CB_SearchCallbacks()
 	    {!"OnPlayerTargetPlayer", CB_OnPlayerTargetPlayer},
 		{!"OnPlayerDisableCursor", CB_OnPlayerDisableCursor},
 		{!"OnPlayerAntiReload", CB_OnPlayerAntiReload},
-		{!"OnPlayerAnimationFinish", CB_OnPlayerAnimationFinish}
+		{!"OnPlayerAnimationFinish", CB_OnPlayerAnimationFinish},
+		{!"OnPlayerReloadWeapon", CB_OnPlayerReloadWeapon}
 	};
 	for (new i = 0; i != sizeof(g_aCustomCallbacks); i ++)
 	{
@@ -392,6 +398,16 @@ public OnPlayerUpdate(playerid)
 	  		    	g_cbCallbackData[playerid][e_cbTarget] = GetPlayerTargetPlayer(playerid);
 	  		    	CallLocalFunction("OnPlayerTargetPlayer", "ddd", playerid, g_cbCallbackData[playerid][e_cbTarget], GetPlayerWeapon(playerid));
 				}
+			}
+			if (IsCallbackUsed(CB_OnPlayerReloadWeapon))
+			{
+			    if ((22 <= GetPlayerWeapon(playerid) <= 38) && !CB_GetPlayerFlag(playerid, e_cbReloading) && GetPlayerWeaponState(playerid) == WEAPONSTATE_RELOADING)
+			    {
+			        CB_SetPlayerFlag(playerid, e_cbReloading, true);
+			        
+					SetTimerEx("CB_ReloadComplete", 3000, false, "d", playerid);
+	    			CallLocalFunction("OnPlayerReloadWeapon", "ddd", playerid, GetPlayerWeapon(playerid), GetPlayerAmmo(playerid));
+			    }
 			}
 			if (IsCallbackUsed(CB_OnPlayerUseVending))
 			{
@@ -569,6 +585,14 @@ public OnPlayerClickTextDraw(playerid, Text:clickedid)
 	#else
 		return 0;
 	#endif
+}
+
+forward CB_ReloadComplete(playerid);
+public CB_ReloadComplete(playerid)
+{
+	CB_SetPlayerFlag(playerid, e_cbReloading, false);
+
+	return 1;
 }
 
 forward CB_UpdateAnim(playerid);
