@@ -763,7 +763,7 @@ public CB_TabTimer()
 #endif
 
 #if defined CB_OnPlayerWeaponShot
-	forward CB_OnPlayerWeaponShot(playerid, weaponid, hittype, hitid, fX, fY, fZ);
+	forward CB_OnPlayerWeaponShot(playerid, weaponid, hittype, hitid, Float:fX, Float:fY, Float:fZ);
 #endif
 
 #if defined CB_OnPlayerClickTextDraw
