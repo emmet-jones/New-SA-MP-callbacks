@@ -76,12 +76,12 @@ static
 	g_aVehicleDamage[MAX_VEHICLES][3 char],
 	Float:g_aVehicleHealth[MAX_VEHICLES],
 	Float:g_aVehicleSpeed[MAX_VEHICLES],
-	g_aFiredShots[MAX_PLAYERS][5],
+	g_aFiredShots[MAX_PLAYERS][4],
 	g_aLastWeapon[MAX_PLAYERS];
 
 static const
-	g_aClipData[] = {34, 17, 7, 1, 4, 7, 100, 30, 30, 50, 100, 1, 1},
-	g_aClipSlots[] = {2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 4, 6, 6};
+	g_aClipData[] = {34, 17, 7, 1, 4, 7, 100, 30, 30, 50, 100},
+	g_aClipSlots[] = {0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 2};
 
 static const Float:g_aVendingMachines[][] = {
     {2480.9548, -1958.5217, 13.5830}, {2325.9185, -1645.9553, 14.8270},
@@ -222,7 +222,7 @@ stock static CB_SetPlayerFlag(playerid, e_cbPlayerFlags:flag, bool:status)
 	else
 	    g_aCallbackFlags[playerid] &= ~flag;
 
-	return 0;
+ 	return 0;
 }
 
 stock static CB_GetVehicleDriver(vehicleid)
@@ -351,14 +351,15 @@ public OnPlayerWeaponShot(playerid, weaponid, hittype, hitid, Float:fX, Float:fY
 	if ((IsCallbackUsed(CB_OnPlayerWeaponEmpty)) && (22 <= weaponid <= 38 && GetPlayerWeaponState(playerid) == WEAPONSTATE_LAST_BULLET && GetPlayerAmmo(playerid) == 1))
 		CallLocalFunction("OnPlayerWeaponEmpty", "dd", playerid, weaponid);
 
-	if ((IsCallbackUsed(CB_OnPlayerAntiReload)) && (22 <= weaponid <= 34) && (weaponid != 25 && weaponid != 33 && weaponid != 34))
+	if ((IsCallbackUsed(CB_OnPlayerAntiReload)) && (22 <= weaponid <= 32) && weaponid != 25)
 	{
 		new
-			index = (weaponid - 22);
+			clip = g_aClipData[weaponid - 22],
+			slot = g_aClipSlots[weaponid - 22];
 
-		if (++ g_aFiredShots[playerid][g_aClipSlots[index]] > g_aClipData[index] && (g_aFiredShots[playerid][g_aClipSlots[index]] - g_aClipData[index]) >= 5)
+		if (++ g_aFiredShots[playerid][slot] > clip && (g_aFiredShots[playerid][slot] - clip) >= 5)
 		{
-		    g_aFiredShots[playerid][g_aClipSlots[index]] = 0;
+		    g_aFiredShots[playerid][slot] = 0;
 			CallLocalFunction("OnPlayerAntiReload", "dd", playerid, weaponid);
 		}
 	}
