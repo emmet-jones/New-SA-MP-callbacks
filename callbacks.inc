@@ -303,7 +303,7 @@ public OnPlayerDisconnect(playerid, reason)
  	g_cbCallbackData[playerid][e_cbHealth] = 100.0;
  	g_cbCallbackData[playerid][e_cbPacket] = 0.0;
 
- 	for (new i = 0; i < 5; i ++) {
+ 	for (new i = 0; i < 4; i ++) {
  	    g_aFiredShots[playerid][i] = 0;
 	}
 	g_aLastWeapon[playerid] = 0;
