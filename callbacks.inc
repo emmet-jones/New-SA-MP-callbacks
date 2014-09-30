@@ -404,7 +404,7 @@ public OnPlayerUpdate(playerid)
 			    if ((22 <= GetPlayerWeapon(playerid) <= 38) && !CB_GetPlayerFlag(playerid, e_cbReloading) && GetPlayerWeaponState(playerid) == WEAPONSTATE_RELOADING)
 			    {
 			        CB_SetPlayerFlag(playerid, e_cbReloading, true);
-			        
+
 					SetTimerEx("CB_ReloadComplete", 3000, false, "d", playerid);
 	    			CallLocalFunction("OnPlayerReloadWeapon", "ddd", playerid, GetPlayerWeapon(playerid), GetPlayerAmmo(playerid));
 			    }
@@ -648,7 +648,7 @@ public CB_TabTimer()
 		}
 		else if (IsCallbackUsed(CB_OnPlayerPause))
 		{
-			if (!CB_GetPlayerFlag(i, e_cbPaused) && (GetTickCount() - g_cbCallbackData[i][e_cbLast]) >= 2000)
+			if (!CB_GetPlayerFlag(i, e_cbPaused) && (GetTickCount() - g_cbCallbackData[i][e_cbLast]) >= 4000)
 			{
 		    	g_cbCallbackData[i][e_cbTime] = GetTickCount();
 
