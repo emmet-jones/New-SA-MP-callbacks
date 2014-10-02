@@ -72,7 +72,7 @@ public OnPlayerTargetPlayer(playerid, targetid, weaponid)
 	return 1;
 }
 
-public OnPlayerDisableCursor(playerid, color)
+public OnPlayerDisableCursor(playerid, hovercolor)
 {
 	return 1;
 }
@@ -83,6 +83,26 @@ public OnPlayerAntiReload(playerid, weaponid)
 }
 
 public OnPlayerAnimationFinish(playerid, animlib[], animname[])
+{
+    return 1;
+}
+
+public OnPlayerReloadWeapon(playerid, weaponid, ammo)
+{
+    return 1;
+}
+
+public OnPlayerBurning(playerid, status)
+{
+    return 1;
+}
+
+public OnPlayerAiming(playerid, weaponid, status)
+{
+    return 1;
+}
+
+public OnPlayerTakePicture(playerid)
 {
     return 1;
 }
