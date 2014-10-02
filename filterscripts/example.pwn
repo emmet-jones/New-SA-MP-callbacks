@@ -106,3 +106,4 @@ public OnPlayerTakePicture(playerid)
 {
     return 1;
 }
+
