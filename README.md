@@ -92,6 +92,12 @@ stock IsPlayerNearVending(playerid);
 
 // Returns the player's FPS amount.
 stock GetPlayerFPS(playerid);
+
+// Returns 1 if the player is burning.
+stock IsPlayerBurning(playerid);
+
+// Returns 1 if the player is aiming.
+stock IsPlayerAiming(playerid);
 ```
 
 Example
