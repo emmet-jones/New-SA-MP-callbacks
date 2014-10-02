@@ -53,11 +53,20 @@ forward OnPlayerDisableCursor(playerid, hovercolor);
 // Called when a player shoots more ammo than their weapon's clip can hold.
 forward OnPlayerAntiReload(playerid, weaponid);
 
-// Called when a player's animation finishes.
+// Called when an animation is finished.
 forward OnPlayerAnimationFinish(playerid, animlib[], animname[]);
 
 // Called when a player is reloading their weapon.
 forward OnPlayerReloadWeapon(playerid, weaponid, ammo);
+
+// Called when a player is burning from fire.
+forward OnPlayerBurning(playerid, status);
+
+// Called when a player aims a weapon.
+forward OnPlayerAiming(playerid, weaponid, status);
+
+// Called when a player takes a picture with their camera.
+forward OnPlayerTakePicture(playerid);
 ```
 
 Functions
