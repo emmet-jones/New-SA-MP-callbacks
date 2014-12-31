@@ -691,7 +691,11 @@ public OnPlayerTakeDamage(playerid, issuerid, Float:amount, weaponid, bodypart)
 		}
 		g_cbPlayers[playerid][e_cbLastBurn] = GetTickCount();
 	}
-	return 1;
+	#if defined CB_OnPlayerTakeDamage
+		return CB_OnPlayerTakeDamage(playerid, issuerid, amount, weaponid, bodypart);
+	#else
+		return 1;
+	#endif
 }
 
 forward CB_UpdateAnim(playerid);
