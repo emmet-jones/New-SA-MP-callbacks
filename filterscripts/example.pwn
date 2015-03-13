@@ -32,7 +32,7 @@ public OnPlayerReleaseKey(playerid, keys, time)
 	return 1;
 }
 
-public OnPlayerFall(playerid, Float:height, Float:damage)
+public OnPlayerFall(playerid, Float:damage)
 {
 	return 1;
 }
@@ -52,12 +52,12 @@ public OnPlayerFPSChange(playerid, oldfps, newfps)
 	return 1;
 }
 
-public OnPlayerCarJack(playerid, targetid, vehicleid)
+public OnPlayerJackVehicle(playerid, targetid, vehicleid)
 {
 	return 1;
 }
 
-public OnPlayerWeaponEmpty(playerid, weaponid)
+public OnPlayerEmptyWeapon(playerid, weaponid)
 {
 	return 1;
 }
@@ -72,7 +72,7 @@ public OnPlayerTargetPlayer(playerid, targetid, weaponid)
 	return 1;
 }
 
-public OnPlayerDisableCursor(playerid, hovercolor)
+public OnPlayerHideCursor(playerid, hovercolor)
 {
 	return 1;
 }
@@ -82,7 +82,7 @@ public OnPlayerAntiReload(playerid, weaponid)
 	return 1;
 }
 
-public OnPlayerAnimationFinish(playerid, animlib[], animname[])
+public OnPlayerAnimationPlay(playerid, animlib[], animname[])
 {
     return 1;
 }
@@ -102,8 +102,12 @@ public OnPlayerAiming(playerid, weaponid, status)
     return 1;
 }
 
-public OnPlayerTakePicture(playerid)
+public OnPlayerActionChange(playerid, newaction, oldaction)
 {
     return 1;
 }
 
+public OnPlayerRamPlayer(playerid, driverid, vehicleid, Float:damage)
+{
+    return 1;
+}
