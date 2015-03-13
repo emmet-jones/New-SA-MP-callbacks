@@ -21,7 +21,7 @@ forward OnPlayerHoldingKey(playerid, keys);
 forward OnPlayerReleaseKey(playerid, keys, time);
 
 // Called when a player falls from a tall height.
-forward OnPlayerFall(playerid, Float:height, Float:damage);
+forward OnPlayerFall(playerid, Float:damage);
 
 // Called when a player loses packets.
 forward OnPlayerPacketLoss(playerid, Float:oldloss, Float:newloss);
@@ -36,10 +36,10 @@ forward OnPlayerUseVending(playerid);
 forward OnPlayerFPSChange(playerid, oldfps, newfps);
 
 // Called when a player jacks another player's vehicle.
-forward OnPlayerCarJack(playerid, targetid, vehicleid);
+forward OnPlayerJackVehicle(playerid, targetid, vehicleid);
 
 // Called when a player completely uses up all ammo in their weapon.
-forward OnPlayerWeaponEmpty(playerid, weaponid);
+forward OnPlayerEmptyWeapon(playerid, weaponid);
 
 // Called when a player shoots another player in their team.
 forward OnPlayerFriendlyFire(playerid, targetid, weaponid);
@@ -48,13 +48,13 @@ forward OnPlayerFriendlyFire(playerid, targetid, weaponid);
 forward OnPlayerTargetPlayer(playerid, targetid, weaponid);
 
 // Called when a player explicitly disables textdraw selection mode.
-forward OnPlayerDisableCursor(playerid, hovercolor);
+forward OnPlayerHideCursor(playerid, hovercolor);
 
 // Called when a player shoots more ammo than their weapon's clip can hold.
 forward OnPlayerAntiReload(playerid, weaponid);
 
 // Called when an animation is finished.
-forward OnPlayerAnimationFinish(playerid, animlib[], animname[]);
+forward OnPlayerAnimationPlay(playerid, animlib[], animname[]);
 
 // Called when a player is reloading their weapon.
 forward OnPlayerReloadWeapon(playerid, weaponid, ammo);
@@ -65,8 +65,11 @@ forward OnPlayerBurning(playerid, status);
 // Called when a player aims a weapon.
 forward OnPlayerAiming(playerid, weaponid, status);
 
-// Called when a player takes a picture with their camera.
-forward OnPlayerTakePicture(playerid);
+// Called when a player's action changes;
+forward OnPlayerActionChange(playerid, oldaction, newaction);
+
+// Called when a player rams another player.
+forward OnPlayerRamPlayer(playerid, driverid, vehicleid, Float:damage);
 ```
 
 Functions
@@ -81,23 +84,32 @@ stock IsPlayerPaused(playerid);
 // Returns 1 if the player is holding the key.
 stock IsPlayerHoldingKey(playerid, keys);
 
-// Returns the player's packet loss.
-stock Float:GetPlayerPacketLoss(playerid);
+// Returns 1 if the player is skydiving.
+stock IsPlayerSkydiving(playerid);
 
-// Returns the time that the player has been paused.
-stock GetPlayerPausedTime(playerid);
-
-// Returns 1 if the player is near any vending machine.
-stock IsPlayerNearVending(playerid);
-
-// Returns the player's FPS amount.
-stock GetPlayerFPS(playerid);
+// Returns 1 if the player is swimming.
+stock IsPlayerSwimming(playerid);
 
 // Returns 1 if the player is burning.
 stock IsPlayerBurning(playerid);
 
 // Returns 1 if the player is aiming.
 stock IsPlayerAiming(playerid);
+
+// Returns 1 if the player is near any vending machine.
+stock IsPlayerNearVending(playerid);
+
+// Returns the player's action.
+stock GetPlayerAction(playerid);
+
+// Returns the player's packet loss.
+stock Float:GetPlayerPacketLoss(playerid);
+
+// Returns the time that the player has been paused.
+stock GetPlayerPausedTime(playerid);
+
+// Returns the player's FPS amount.
+stock GetPlayerFPS(playerid);
 ```
 
 Example
