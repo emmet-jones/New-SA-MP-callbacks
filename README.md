@@ -70,6 +70,12 @@ forward OnPlayerActionChange(playerid, oldaction, newaction);
 
 // Called when a player rams another player.
 forward OnPlayerRamPlayer(playerid, driverid, vehicleid, Float:damage);
+
+// Called when a player uses a camera to take a picture.
+forward OnPlayerUseCamera(playerid);
+
+// Called when a player sprays a spraycan towards a vehicle.
+forward OnPlayerSprayAtVehicle(playerid, vehicleid);
 ```
 
 Functions
@@ -98,6 +104,9 @@ stock IsPlayerAiming(playerid);
 
 // Returns 1 if the player is near any vending machine.
 stock IsPlayerNearVending(playerid);
+
+// Returns 1 if the player is spraying at a vehicle with a spraycan.
+stock IsPlayerSprayingVehicle(playerid, vehicleid);
 
 // Returns the player's action.
 stock GetPlayerAction(playerid);
