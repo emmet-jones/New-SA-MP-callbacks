@@ -12,11 +12,6 @@ public OnPlayerPause(playerid)
 	return 1;
 }
 
-public OnPlayerUseVending(playerid)
-{
-	return 1;
-}
-
 public OnPlayerResume(playerid, time)
 {
 	return 1;
@@ -33,6 +28,11 @@ public OnPlayerReleaseKey(playerid, keys, time)
 }
 
 public OnPlayerFall(playerid, Float:damage)
+{
+	return 1;
+}
+
+public OnPlayerUseVending(playerid)
 {
 	return 1;
 }
@@ -110,4 +110,14 @@ public OnPlayerActionChange(playerid, newaction, oldaction)
 public OnPlayerRamPlayer(playerid, driverid, vehicleid, Float:damage)
 {
     return 1;
+}
+
+public OnPlayerUseCamera(playerid)
+{
+	return 1;
+}
+
+public OnPlayerSprayAtVehicle(playerid, vehicleid)
+{
+	return 1;
 }
