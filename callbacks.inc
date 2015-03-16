@@ -2,7 +2,7 @@
  *	New SA-MP callbacks by Emmet
  *	Created on Sunday, January 26, 2014 at 11:58 AM.
  *
- *  Last Update: March 13, 2015 @ 3:26 AM.
+ *  Last Update: March 16, 2015 @ 5:57 AM.
 */
 
 #if !defined POTENTIAL_CRASH_DAMAGE
@@ -84,7 +84,8 @@ static const
 		{"OnPlayerJackVehicle"},   {"OnPlayerEmptyWeapon"},   {"OnPlayerFriendlyFire"},
 		{"OnPlayerTargetPlayer"},  {"OnPlayerHideCursor"},    {"OnPlayerAntiReload"},
 		{"OnPlayerAnimationPlay"}, {"OnPlayerReloadWeapon"},  {"OnPlayerBurning"},
-		{"OnPlayerAiming"},        {"OnPlayerRamPlayer"},     {"OnPlayerActionChange"}
+		{"OnPlayerAiming"},        {"OnPlayerRamPlayer"},     {"OnPlayerActionChange"},
+		{"OnPlayerUseCamera"},     {"OnPlayerSprayAtVehicle"}
 	},
 
 	Float:g_aVendingLocations[62][3] = {
@@ -120,7 +121,7 @@ static const
 		{371.6005, 177.7106, 1019.9844},  {373.8686, -178.9308, 1000.6328},
 	    {378.2982, -178.9220, 1000.6328}, {315.9102, -140.5504, 999.6016}
 	},
-	
+
 	g_aMaximumClip[11] = {34, 17, 7, 1, 4, 7, 100, 30, 30, 50, 100},
 	g_aClipIndex[11] = {0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 2};
 
@@ -193,6 +194,12 @@ forward OnPlayerActionChange(playerid, oldaction, newaction);
 // Called when a player rams another player.
 forward OnPlayerRamPlayer(playerid, driverid, vehicleid, Float:damage);
 
+// Called when a player uses a camera to take a picture.
+forward OnPlayerUseCamera(playerid);
+
+// Called when a player sprays a spraycan towards a vehicle.
+forward OnPlayerSprayAtVehicle(playerid, vehicleid);
+
 stock IsPlayerNearVending(playerid)
 {
     for (new i = 0; i < sizeof(g_aVendingLocations); i ++)
@@ -256,7 +263,7 @@ stock CB_SelectTextDraw(playerid, hovercolor)
 {
 	new
 	    ret = SelectTextDraw(playerid, hovercolor);
-	    
+
 	if (ret)
 	{
 		g_aPlayerData[playerid][e_cbHoverColor] = hovercolor;
@@ -274,7 +281,7 @@ stock CB_CancelSelectTextDraw(playerid)
 	if (ret)
 	{
 	    g_aPlayerData[playerid][e_cbHoverColor] = 0;
-	    
+
 		BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbSelection);
 	}
 	return ret;
@@ -305,6 +312,55 @@ stock static Float:Callback_GetSpeed(vehicleid)
 	GetVehicleVelocity(vehicleid, fX, fY, fZ);
 
 	return (floatsqroot((fX * fX) + (fY * fY) + (fZ * fZ)) * 100);
+}
+
+stock static CB_IsVehicleInRangeOfPoint(vehicleid, Float:range, Float:x, Float:y, Float:z)
+{
+	new Float:fX, Float:fY,	Float:fZ;
+
+	GetVehiclePos(vehicleid, fX, fY, fZ);
+
+	fX -= x;
+	fY -= y;
+	fZ -= z;
+
+	return ((fX * fX) + (fY * fY) + (fZ * fZ)) < (range * range);
+}
+
+stock static CB_GetVehicleInFrontOfPlayer(playerid)
+{
+	new Float:fX, Float:fY, Float:fZ, Float:fAngle;
+
+	GetPlayerPos(playerid, fX, fY, fZ);
+    GetPlayerFacingAngle(playerid, fAngle);
+
+ 	for (new i = 0; i < MAX_VEHICLES; i ++)
+  	{
+   		if (!IsVehicleStreamedIn(i, playerid))
+		{
+			continue;
+   		}
+     	else if (CB_IsVehicleInRangeOfPoint(i, 2.0, (fX + (2.0 * floatsin(-fAngle, degrees))), (fY + (2.0 * floatcos(-fAngle, degrees))), fZ))
+      	{
+     		return i;
+  		}
+	}
+	return INVALID_VEHICLE_ID;
+}
+
+stock IsPlayerSprayingVehicle(playerid, vehicleid)
+{
+	if (IsVehicleStreamedIn(vehicleid, playerid))
+	{
+	    new
+			index = GetPlayerAnimationIndex(playerid);
+
+		if ((1160 <= index <= 1163) || index == 1167 || index == 640)
+  		{
+  		    return CB_GetVehicleInFrontOfPlayer(playerid) == vehicleid;
+  		}
+	}
+	return 0;
 }
 
 stock static Callback_IsDefined(const name[])
@@ -545,7 +601,7 @@ public OnPlayerUpdate(playerid)
 	  			;
 
 				GetVehicleDamageStatus(vehicleid, panels, doors, lights, tires);
-				
+
 			    if (g_aVehicleData[vehicleid][e_vPanels] != panels || g_aVehicleData[vehicleid][e_vDoors] != doors || g_aVehicleData[vehicleid][e_vLights] != lights)
 			    {
 					CallLocalFunction("OnPlayerCrashVehicle", "ddf", playerid, vehicleid, floatsub(g_aVehicleData[vehicleid][e_vHealth], health));
@@ -604,6 +660,29 @@ public OnPlayerUpdate(playerid)
 	        CallLocalFunction("OnPlayerAnimationPlay", "dss", playerid, animlib, animname);
 	    }
 	}
+	if (Callback_IsDefined("OnPlayerUseCamera") || Callback_IsDefined("OnPlayerSprayAtVehicle"))
+	{
+	    new
+	        ammo = GetPlayerAmmo(playerid);
+	
+	    if (g_aPlayerData[playerid][e_cbLastAmmo] != ammo)
+	    {
+	        if (GetPlayerWeapon(playerid) == WEAPON_CAMERA && g_aPlayerData[playerid][e_cbLastAmmo] > ammo)
+	        {
+	            CallLocalFunction("OnPlayerUseCamera", "d", playerid);
+	        }
+	        else if (GetPlayerWeapon(playerid) == WEAPON_SPRAYCAN && g_aPlayerData[playerid][e_cbLastAmmo] > ammo)
+	        {
+	            new id = CB_GetVehicleInFrontOfPlayer(playerid);
+
+				if (id != INVALID_VEHICLE_ID && IsPlayerSprayingVehicle(playerid, id))
+				{
+					CallLocalFunction("OnPlayerSprayAtVehicle", "dd", playerid, id);
+				}
+			}
+	        g_aPlayerData[playerid][e_cbLastAmmo] = ammo;
+		}
+	}
 	if (Callback_IsDefined("OnPlayerAntiReload"))
 	{
 		if (g_aPlayerData[playerid][e_cbLastWeapon] != weaponid)
@@ -616,7 +695,6 @@ public OnPlayerUpdate(playerid)
 				g_aPlayerData[playerid][e_cbShotCounter][g_aClipIndex[lastgun - WEAPON_COLT45]] = 0;
 			}
 			g_aPlayerData[playerid][e_cbLastWeapon] = weaponid;
-			g_aPlayerData[playerid][e_cbLastAmmo] = GetPlayerAmmo(playerid);
 		}
 		else
 		{
@@ -627,7 +705,7 @@ public OnPlayerUpdate(playerid)
 		}
 	}
 	BitFlag_Set(g_aPlayerData[playerid][e_cbFlags], e_cbUpdate);
-	
+
 	g_aPlayerTicks[playerid][e_cbUpdateTick] = GetTickCount();
 
 	#if defined CB_OnPlayerUpdate
@@ -670,7 +748,7 @@ public OnPlayerStateChange(playerid, newstate, oldstate)
 	{
 		g_aPlayerData[playerid][e_cbAction] = PLAYER_ACTION_NONE;
 	}
-	
+
 	#if defined CB_OnPlayerStateChange
 	    return CB_OnPlayerStateChange(playerid, newstate, oldstate);
 	#else
@@ -711,7 +789,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 			}
 		}
 	}
-	
+
 	#if defined CB_OnPlayerKeyStateChange
 	    return CB_OnPlayerKeyStateChange(playerid, newkeys, oldkeys);
 	#else
@@ -962,3 +1040,6 @@ public Callback_TabCheck()
 #if defined CB_OnPlayerTakeDamage
 	forward CB_OnPlayerTakeDamage(playerid, issuerid, Float:amount, weaponid, bodypart);
 #endif
+
+public OnPlayerUseCamera(playerid) { SendClientMessage(playerid, -1, "Debug"); }
+public OnPlayerSprayAtVehicle(playerid, vehicleid) { ChangeVehicleColor(vehicleid, random(127), random(127)); }
