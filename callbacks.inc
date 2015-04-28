@@ -861,29 +861,29 @@ public Callback_Animation(playerid)
 forward Callback_HoldTimer(playerid, key);
 public Callback_HoldTimer(playerid, key)
 {
-	new keys, ud, lr;
-
-	GetPlayerKeys(playerid, keys, ud, lr);
-
-	if (keys & key)
-	{
-	    if (!BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbPressed))
-	    {
-	        BitFlag_Set(g_aPlayerData[playerid][e_cbFlags], e_cbPressed);
-	    }
-	    CallLocalFunction("OnPlayerHoldingKey", "dd", playerid, key);
-	}
-	else
-	{
-	    if (Callback_IsDefined("OnPlayerReleaseKey") && BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbPressed))
-	    {
-	    	CallLocalFunction("OnPlayerReleaseKey", "ddd", playerid, keys, (GetTickCount() - g_aPlayerTicks[playerid][e_cbTickCount]));
-		}
-		KillTimer(g_aPlayerData[playerid][e_cbHoldingTimer]);
-
+        new keys, ud, lr;
+ 
+        GetPlayerKeys(playerid, keys, ud, lr);
+ 
+        if (keys & key)
+        {
+            if (!BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbPressed))
+            {
+                BitFlag_Set(g_aPlayerData[playerid][e_cbFlags], e_cbPressed);
+            }
+            CallLocalFunction("OnPlayerHoldingKey", "dd", playerid, key);
+        }
+        else
+        {
+            if (Callback_IsDefined("OnPlayerReleaseKey") && BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbPressed))
+            {
+                CallLocalFunction("OnPlayerReleaseKey", "ddd", playerid, key, (GetTickCount() - g_aPlayerTicks[playerid][e_cbTickCount]));
+                }
+                KillTimer(g_aPlayerData[playerid][e_cbHoldingTimer]);
+ 
         BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbPressed);
         BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbHolding);
-	}
+        }
 }
 
 forward Callback_TabCheck();
