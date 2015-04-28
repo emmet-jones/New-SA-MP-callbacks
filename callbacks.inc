@@ -664,7 +664,7 @@ public OnPlayerUpdate(playerid)
 	{
 	    new
 	        ammo = GetPlayerAmmo(playerid);
-	
+
 	    if (g_aPlayerData[playerid][e_cbLastAmmo] != ammo)
 	    {
 	        if (GetPlayerWeapon(playerid) == WEAPON_CAMERA && g_aPlayerData[playerid][e_cbLastAmmo] > ammo)
@@ -861,29 +861,29 @@ public Callback_Animation(playerid)
 forward Callback_HoldTimer(playerid, key);
 public Callback_HoldTimer(playerid, key)
 {
-        new keys, ud, lr;
- 
-        GetPlayerKeys(playerid, keys, ud, lr);
- 
-        if (keys & key)
+    new keys, ud, lr;
+
+    GetPlayerKeys(playerid, keys, ud, lr);
+
+    if (keys & key)
+    {
+        if (!BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbPressed))
         {
-            if (!BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbPressed))
-            {
-                BitFlag_Set(g_aPlayerData[playerid][e_cbFlags], e_cbPressed);
-            }
-            CallLocalFunction("OnPlayerHoldingKey", "dd", playerid, key);
+            BitFlag_Set(g_aPlayerData[playerid][e_cbFlags], e_cbPressed);
         }
-        else
+        CallLocalFunction("OnPlayerHoldingKey", "dd", playerid, key);
+    }
+    else
+    {
+        if (Callback_IsDefined("OnPlayerReleaseKey") && BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbPressed))
         {
-            if (Callback_IsDefined("OnPlayerReleaseKey") && BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbPressed))
-            {
-                CallLocalFunction("OnPlayerReleaseKey", "ddd", playerid, key, (GetTickCount() - g_aPlayerTicks[playerid][e_cbTickCount]));
-                }
-                KillTimer(g_aPlayerData[playerid][e_cbHoldingTimer]);
- 
-        BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbPressed);
-        BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbHolding);
+            CallLocalFunction("OnPlayerReleaseKey", "ddd", playerid, key, (GetTickCount() - g_aPlayerTicks[playerid][e_cbTickCount]));
         }
+       	KillTimer(g_aPlayerData[playerid][e_cbHoldingTimer]);
+
+    	BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbPressed);
+    	BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbHolding);
+    }
 }
 
 forward Callback_TabCheck();
@@ -1040,6 +1040,3 @@ public Callback_TabCheck()
 #if defined CB_OnPlayerTakeDamage
 	forward CB_OnPlayerTakeDamage(playerid, issuerid, Float:amount, weaponid, bodypart);
 #endif
-
-public OnPlayerUseCamera(playerid) { SendClientMessage(playerid, -1, "Debug"); }
-public OnPlayerSprayAtVehicle(playerid, vehicleid) { ChangeVehicleColor(vehicleid, random(127), random(127)); }
