@@ -244,7 +244,7 @@ stock GetPlayerFPS(playerid)
 
 stock GetPlayerPausedTime(playerid)
 {
-	return g_aPlayerTicks[playerid][e_cbTickCount];
+	return (GetTickCount() - g_aPlayerTicks[playerid][e_cbTickCount]);
 }
 
 stock CB_ApplyAnimation(playerid, animlib[], animname[], Float:fDelta, loop, lockx, locky, freeze, time, forcesync = 0)
