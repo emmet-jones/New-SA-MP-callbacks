@@ -121,3 +121,15 @@ public OnPlayerSprayAtVehicle(playerid, vehicleid)
 {
 	return 1;
 }
+
+public OnPlayerJump(playerid)
+{
+	return 1;
+}
+
+public OnPlayerSprint(playerid, status)
+{
+	return 1;
+}
+}
+}
