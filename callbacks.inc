@@ -2,32 +2,33 @@
  *	New SA-MP callbacks by Emmet
  *	Created on Sunday, January 26, 2014 at 11:58 AM.
  *
- *  Last Update: March 16, 2015 @ 5:57 AM.
+ *  Last Update: February 25, 2016 @ 10:00 AM.
 */
 
+// The amount of damage a vehicle must take before being classified as a car crash.
 #if !defined POTENTIAL_CRASH_DAMAGE
 	#define POTENTIAL_CRASH_DAMAGE (55.0)
 #endif
 
-#if !defined POTENTIAL_SPEED_DROP
-	#define POTENTIAL_SPEED_DROP (5.0)
+// Maximum amount of shots fired without reloading before OnPlayerAntiReload is called.
+#if !defined MAX_ACCUMULATED_SHOTS
+	#define MAX_ACCUMULATED_SHOTS (5)
 #endif
 
-#define BitFlag_Status(%0,%1) \
-	((%0) & %1)
+#define CB_GetPlayerFlag(%0,%1) \
+	((g_cPlayerInfo[(%0)][e_cbFlags]) & (%1))
 
-#define BitFlag_Unset(%0,%1) \
-	((%0) &= ~%1)
+#define CB_EnableFlag(%0,%1) \
+	((g_cPlayerInfo[(%0)][e_cbFlags]) |= (%1))
 
-#define BitFlag_Set(%0,%1) \
-	((%0) |= %1)
+#define CB_DisableFlag(%0,%1) \
+	((g_cPlayerInfo[(%0)][e_cbFlags]) &= (~%1))
 
 #define PLAYER_ACTION_NONE      (0)
 #define PLAYER_ACTION_SHOOTING  (1)
 #define PLAYER_ACTION_SWIMMING  (2)
 #define PLAYER_ACTION_SKYDIVING (3)
-#define PLAYER_ACTION_JUMPING   (4)
-
+	
 // Player variables
 enum e_cbPlayerData {
 	e_cbPlayerFlags:e_cbFlags,
@@ -39,19 +40,20 @@ enum e_cbPlayerData {
   	e_cbAction,
   	e_cbAnimation,
   	e_cbHoverColor,
-  	e_cbShotCounter[4],
+  	e_cbShotCounter[12],
   	e_cbLastWeapon,
   	e_cbLastAmmo,
-  	e_cbLastVehicle
+   	e_cbVehicle
 };
 
 // Used for storing tick counts (GetTickCount).
 enum e_cbPlayerTicks {
 	e_cbTickCount,
+	e_cbLastUpdate,
+	e_cbLastShot,
+	e_cbLastJump,
 	e_cbBurnTick,
-	e_cbUpdateTick,
-	e_cbVendingTick,
-	e_cbShootTick
+	e_cbVendingTick
 };
 
 // Vehicle variables
@@ -59,6 +61,7 @@ enum e_cbCarData {
 	e_vPanels,
 	e_vDoors,
 	e_vLights,
+	e_vEnterID,
 	Float:e_vHealth,
 	Float:e_vSpeed
 };
@@ -73,19 +76,21 @@ enum e_cbPlayerFlags (<<= 1) {
 	e_cbReloading,
 	e_cbBurning,
 	e_cbAiming,
-	e_cbPressed
+	e_cbPressed,
+	e_cbSprinting
 };
 
 static const
     g_sCallbackList[][] = {
-		{"OnPlayerPause"},         {"OnPlayerResume"},        {"OnPlayerHoldingKey"},
-		{"OnPlayerReleaseKey"},    {"OnPlayerFall"},          {"OnPlayerPacketLoss"},
-		{"OnPlayerUseVending"},    {"OnPlayerCrashVehicle"},  {"OnPlayerFPSChange"},
-		{"OnPlayerJackVehicle"},   {"OnPlayerEmptyWeapon"},   {"OnPlayerFriendlyFire"},
-		{"OnPlayerTargetPlayer"},  {"OnPlayerHideCursor"},    {"OnPlayerAntiReload"},
-		{"OnPlayerAnimationPlay"}, {"OnPlayerReloadWeapon"},  {"OnPlayerBurning"},
-		{"OnPlayerAiming"},        {"OnPlayerRamPlayer"},     {"OnPlayerActionChange"},
-		{"OnPlayerUseCamera"},     {"OnPlayerSprayAtVehicle"}
+		{"OnPlayerPause"},          {"OnPlayerResume"},         {"OnPlayerHoldingKey"},
+		{"OnPlayerReleaseKey"},     {"OnPlayerFall"},           {"OnPlayerPacketLoss"},
+		{"OnPlayerUseVending"},     {"OnPlayerCrashVehicle"},   {"OnPlayerFPSChange"},
+		{"OnPlayerJackVehicle"},    {"OnPlayerEmptyWeapon"},    {"OnPlayerFriendlyFire"},
+		{"OnPlayerTargetPlayer"},   {"OnPlayerHideCursor"},     {"OnPlayerAntiReload"},
+		{"OnPlayerAnimationPlay"},  {"OnPlayerReloadWeapon"},   {"OnPlayerBurn"},
+		{"OnPlayerAiming"}, 		{"OnPlayerRamPlayer"},      {"OnPlayerActionChange"},
+		{"OnPlayerUseCamera"},      {"OnPlayerSprayAtVehicle"}, {"OnPlayerSprint"},
+		{"OnPlayerJump"}
 	},
 
 	Float:g_aVendingLocations[62][3] = {
@@ -120,21 +125,19 @@ static const
 	    {374.7823, 188.2360, 1008.3893},  {351.6473, 206.1147, 1008.3828},
 		{371.6005, 177.7106, 1019.9844},  {373.8686, -178.9308, 1000.6328},
 	    {378.2982, -178.9220, 1000.6328}, {315.9102, -140.5504, 999.6016}
-	},
+	}
+;
 
-	g_aMaximumClip[11] = {34, 17, 7, 1, 4, 7, 100, 30, 30, 50, 100},
-	g_aClipIndex[11] = {0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 2};
+static g_cPlayerInfo[MAX_PLAYERS][e_cbPlayerData];
+static g_cPlayerTick[MAX_PLAYERS][e_cbPlayerTicks];
 
-static g_aPlayerData[MAX_PLAYERS][e_cbPlayerData];
-static g_aPlayerTicks[MAX_PLAYERS][e_cbPlayerTicks];
-
-static g_aVehicleData[MAX_VEHICLES][e_cbCarData];
-static g_bCallbackDefined[sizeof(g_sCallbackList)];
+static g_cVehicleInfo[MAX_VEHICLES][e_cbCarData];
+static g_cCallbackDefined[sizeof(g_sCallbackList)];
 
 // Called when a player pauses their game.
 forward OnPlayerPause(playerid);
 
-// Called when a player returns to the game.
+// Called when a player resumes their game.
 forward OnPlayerResume(playerid, time);
 
 // Called when a player starts holding a key.
@@ -143,10 +146,10 @@ forward OnPlayerHoldingKey(playerid, keys);
 // Called when a player releases a key.
 forward OnPlayerReleaseKey(playerid, keys, time);
 
-// Called when a player falls from a tall height.
+// Called when a player falls and loses damage.
 forward OnPlayerFall(playerid, Float:damage);
 
-// Called when a player loses packets.
+// Called when a player experiences packet loss.
 forward OnPlayerPacketLoss(playerid, Float:oldloss, Float:newloss);
 
 // Called when a player crashes their vehicle.
@@ -182,13 +185,13 @@ forward OnPlayerAnimationPlay(playerid, animlib[], animname[]);
 // Called when a player is reloading their weapon.
 forward OnPlayerReloadWeapon(playerid, weaponid, ammo);
 
-// Called when a player is burning from fire.
-forward OnPlayerBurning(playerid, status);
+// Called when a player starts or stops burning from fire.
+forward OnPlayerBurn(playerid, status);
 
-// Called when a player aims a weapon.
+// Called when a player starts or stops aiming a weapon.
 forward OnPlayerAiming(playerid, weaponid, status);
 
-// Called when a player's action changes;
+// Called when a player's action changes.
 forward OnPlayerActionChange(playerid, oldaction, newaction);
 
 // Called when a player rams another player.
@@ -200,11 +203,17 @@ forward OnPlayerUseCamera(playerid);
 // Called when a player sprays a spraycan towards a vehicle.
 forward OnPlayerSprayAtVehicle(playerid, vehicleid);
 
+// Called when a player jumps by pressing the jump key.
+forward OnPlayerJump(playerid);
+
+// Called when a player starts or stops sprinting.
+forward OnPlayerSprint(playerid, status);
+
 stock IsPlayerNearVending(playerid)
 {
-    for (new i = 0; i < sizeof(g_aVendingLocations); i ++)
+    for(new i = 0; i < sizeof(g_aVendingLocations); i ++)
 	{
-        if (IsPlayerInRangeOfPoint(playerid, 3.0, g_aVendingLocations[i][0], g_aVendingLocations[i][1], g_aVendingLocations[i][2]))
+        if(IsPlayerInRangeOfPoint(playerid, 3.0, g_aVendingLocations[i][0], g_aVendingLocations[i][1], g_aVendingLocations[i][2]))
 		{
             return 1;
 		}
@@ -212,19 +221,24 @@ stock IsPlayerNearVending(playerid)
 	return 0;
 }
 
+stock GetConnectedTime(playerid)
+{
+	return NetStats_GetConnectedTime(playerid);
+}
+
 stock IsPlayerPaused(playerid)
 {
-	return BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbPaused);
+	return CB_GetPlayerFlag(playerid, e_cbPaused);
 }
 
 stock IsPlayerBurning(playerid)
 {
-	return BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbBurning);
+	return CB_GetPlayerFlag(playerid, e_cbBurning);
 }
 
 stock IsPlayerAiming(playerid)
 {
-	return BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbAiming);
+	return CB_GetPlayerFlag(playerid, e_cbAiming);
 }
 
 stock IsPlayerSwimming(playerid)
@@ -237,14 +251,54 @@ stock IsPlayerSkydiving(playerid)
 	return (GetPlayerWeapon(playerid) == 46 && GetPlayerAnimationIndex(playerid) == 1134);
 }
 
+stock IsPlayerSprinting(playerid)
+{
+	new
+	    index = GetPlayerAnimationIndex(playerid),
+	    keys,
+	    ud,
+	    lr
+	;
+
+	GetPlayerKeys(playerid, keys, ud, lr);
+	
+	return (keys & KEY_SPRINT) && ((1222 <= index <= 1236) || index == 1196);
+}
+
+stock IsPlayerJumping(playerid)
+{
+	new
+	    index = GetPlayerAnimationIndex(playerid),
+	    keys,
+	    ud,
+	    lr
+	;
+
+	GetPlayerKeys(playerid, keys, ud, lr);
+
+	return (keys & KEY_JUMP) && (1196 <= index <= 1198);
+}
+
 stock GetPlayerFPS(playerid)
 {
-	return g_aPlayerData[playerid][e_cbFrames];
+	return g_cPlayerInfo[playerid][e_cbFrames];
 }
 
 stock GetPlayerPausedTime(playerid)
 {
-	return (GetTickCount() - g_aPlayerTicks[playerid][e_cbTickCount]);
+	return (GetConnectedTime(playerid) - g_cPlayerTick[playerid][e_cbTickCount]);
+}
+
+stock IsPlayerSprayingVehicle(playerid, vehicleid)
+{
+	if(IsVehicleStreamedIn(vehicleid, playerid) && CB_GetVehicleInFrontOfPlayer(playerid) == vehicleid)
+	{
+	    new
+			index = GetPlayerAnimationIndex(playerid);
+
+		return ((1160 <= index <= 1163) || index == 1167 || index == 640);
+	}
+	return 0;
 }
 
 stock CB_ApplyAnimation(playerid, animlib[], animname[], Float:fDelta, loop, lockx, locky, freeze, time, forcesync = 0)
@@ -252,9 +306,9 @@ stock CB_ApplyAnimation(playerid, animlib[], animname[], Float:fDelta, loop, loc
 	new
 		ret = ApplyAnimation(playerid, animlib, animname, fDelta, loop, lockx, locky, freeze, time, forcesync);
 
-	if (ret)
+	if(ret)
 	{
-	 	SetTimerEx("Callback_Animation", 100, false, "d", playerid);
+	 	SetTimerEx("Callback_CheckAnimation", 100, false, "i", playerid);
 	}
 	return ret;
 }
@@ -264,11 +318,11 @@ stock CB_SelectTextDraw(playerid, hovercolor)
 	new
 	    ret = SelectTextDraw(playerid, hovercolor);
 
-	if (ret)
+	if(ret)
 	{
-		g_aPlayerData[playerid][e_cbHoverColor] = hovercolor;
+		g_cPlayerInfo[playerid][e_cbHoverColor] = hovercolor;
 
-		BitFlag_Set(g_aPlayerData[playerid][e_cbFlags], e_cbSelection);
+		CB_EnableFlag(playerid, e_cbSelection);
 	}
 	return ret;
 }
@@ -278,25 +332,41 @@ stock CB_CancelSelectTextDraw(playerid)
 	new
 	    ret = CancelSelectTextDraw(playerid);
 
-	if (ret)
+	if(ret)
 	{
-	    g_aPlayerData[playerid][e_cbHoverColor] = 0;
+	    g_cPlayerInfo[playerid][e_cbHoverColor] = 0;
 
-		BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbSelection);
+		CB_DisableFlag(playerid, e_cbSelection);
 	}
 	return ret;
 }
 
 stock static Callback_GetDriver(vehicleid)
 {
-	for (new i = 0; i < MAX_PLAYERS; i ++)
+	for(new i = 0; i < MAX_PLAYERS; i ++)
 	{
-		if (GetPlayerState(i) == PLAYER_STATE_DRIVER && IsPlayerInVehicle(i, vehicleid))
+		if(GetPlayerState(i) == PLAYER_STATE_DRIVER && IsPlayerInVehicle(i, vehicleid))
 		{
 		    return i;
 		}
 	}
 	return INVALID_PLAYER_ID;
+}
+
+stock static Callback_GetMaxClip(weaponid)
+{
+    static const
+		s_AmmoCapacity[11] = {34, 17, 7, 1, 4, 7, 100, 30, 30, 50, 100}
+	;
+
+	if((WEAPON_COLT45 <= weaponid <= WEAPON_TEC9) && weaponid != WEAPON_SHOTGUN)
+	{
+	    weaponid -= WEAPON_COLT45;
+
+	    return s_AmmoCapacity[weaponid];
+	}
+
+	return 0;
 }
 
 stock static Float:Callback_GetSpeed(vehicleid)
@@ -316,7 +386,11 @@ stock static Float:Callback_GetSpeed(vehicleid)
 
 stock static CB_IsVehicleInRangeOfPoint(vehicleid, Float:range, Float:x, Float:y, Float:z)
 {
-	new Float:fX, Float:fY,	Float:fZ;
+	new
+		Float:fX,
+		Float:fY,
+		Float:fZ
+	;
 
 	GetVehiclePos(vehicleid, fX, fY, fZ);
 
@@ -329,18 +403,22 @@ stock static CB_IsVehicleInRangeOfPoint(vehicleid, Float:range, Float:x, Float:y
 
 stock static CB_GetVehicleInFrontOfPlayer(playerid)
 {
-	new Float:fX, Float:fY, Float:fZ, Float:fAngle;
+	new
+		Float:fX,
+		Float:fY,
+		Float:fZ,
+		Float:fA
+	;
 
 	GetPlayerPos(playerid, fX, fY, fZ);
-    GetPlayerFacingAngle(playerid, fAngle);
+    GetPlayerFacingAngle(playerid, fA);
 
- 	for (new i = 0; i < MAX_VEHICLES; i ++)
+    fX += (2.0 * floatsin(-fA, degrees));
+	fY += (2.0 * floatcos(-fA, degrees));
+
+ 	for(new i = 0; i < MAX_VEHICLES; i ++)
   	{
-   		if (!IsVehicleStreamedIn(i, playerid))
-		{
-			continue;
-   		}
-     	else if (CB_IsVehicleInRangeOfPoint(i, 2.0, (fX + (2.0 * floatsin(-fAngle, degrees))), (fY + (2.0 * floatcos(-fAngle, degrees))), fZ))
+   		if(IsVehicleStreamedIn(i, playerid) && CB_IsVehicleInRangeOfPoint(i, 2.0, fX, fY, fZ))
       	{
      		return i;
   		}
@@ -348,43 +426,30 @@ stock static CB_GetVehicleInFrontOfPlayer(playerid)
 	return INVALID_VEHICLE_ID;
 }
 
-stock IsPlayerSprayingVehicle(playerid, vehicleid)
-{
-	if (IsVehicleStreamedIn(vehicleid, playerid))
-	{
-	    new
-			index = GetPlayerAnimationIndex(playerid);
-
-		if ((1160 <= index <= 1163) || index == 1167 || index == 640)
-  		{
-  		    return CB_GetVehicleInFrontOfPlayer(playerid) == vehicleid;
-  		}
-	}
-	return 0;
-}
-
 stock static Callback_IsDefined(const name[])
 {
-	for (new i = 0; i < sizeof(g_sCallbackList); i ++)
+	for(new i = 0; i < sizeof(g_sCallbackList); i ++)
 	{
-	    if (!strcmp(g_sCallbackList[i], name) && g_bCallbackDefined[i])
+	    if(g_cCallbackDefined[i] && !strcmp(g_sCallbackList[i], name))
 	    {
 	        return 1;
 		}
 	}
+
 	return 0;
 }
 
 stock static Callback_Initialize()
 {
-	for (new i = 0; i < sizeof(g_sCallbackList); i ++)
+	for(new i = 0; i < sizeof(g_sCallbackList); i ++)
 	{
-		if (funcidx(g_sCallbackList[i]) != -1)
+		if(funcidx(g_sCallbackList[i]) >= 0)
 		{
-		    g_bCallbackDefined[i] = true;
+		    g_cCallbackDefined[i] = true;
 		}
 	}
-    if (Callback_IsDefined("OnPlayerPause") || Callback_IsDefined("OnPlayerResume"))
+
+	if(Callback_IsDefined("OnPlayerPause") || Callback_IsDefined("OnPlayerResume"))
     {
 		SetTimer("Callback_TabCheck", 600, true);
 	}
@@ -392,30 +457,37 @@ stock static Callback_Initialize()
 
 public OnPlayerDisconnect(playerid, reason)
 {
-	if (BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbHolding))
+	// Kill any active timers.
+
+	if(CB_GetPlayerFlag(playerid, e_cbHolding))
 	{
-	    KillTimer(g_aPlayerData[playerid][e_cbHoldingTimer]);
+	    KillTimer(g_cPlayerInfo[playerid][e_cbHoldingTimer]);
 	}
-	g_aPlayerTicks[playerid][e_cbUpdateTick] = 0;
-    g_aPlayerTicks[playerid][e_cbTickCount] = 0;
-    g_aPlayerTicks[playerid][e_cbBurnTick] = 0;
-	g_aPlayerTicks[playerid][e_cbVendingTick] = 0;
-	g_aPlayerTicks[playerid][e_cbShootTick] = 0;
 
-	g_aPlayerData[playerid][e_cbAction] = PLAYER_ACTION_NONE;
-	g_aPlayerData[playerid][e_cbLastWeapon] = 0;
-	g_aPlayerData[playerid][e_cbLastAmmo] = 0;
-  	g_aPlayerData[playerid][e_cbFrames] = 0;
-  	g_aPlayerData[playerid][e_cbDrunkLevel] = 0;
-  	g_aPlayerData[playerid][e_cbTarget] = 0;
-  	g_aPlayerData[playerid][e_cbAnimation] = 0;
-  	g_aPlayerData[playerid][e_cbHoverColor] = 0;
- 	g_aPlayerData[playerid][e_cbPacket] = 0.0;
-    g_aPlayerData[playerid][e_cbFlags] = e_cbPlayerFlags:0;
+	// Reset the tick variables.
+    g_cPlayerTick[playerid][e_cbTickCount] = 0;
+    g_cPlayerTick[playerid][e_cbLastUpdate] = 0;
+	g_cPlayerTick[playerid][e_cbLastShot] = 0;
+	g_cPlayerTick[playerid][e_cbLastJump] = 0;
+    g_cPlayerTick[playerid][e_cbBurnTick] = 0;
+	g_cPlayerTick[playerid][e_cbVendingTick] = 0;
 
-    for (new i = 0; i < 4; i ++)
+	// Reset the player information.
+	g_cPlayerInfo[playerid][e_cbAction] = PLAYER_ACTION_NONE;
+	g_cPlayerInfo[playerid][e_cbLastWeapon] = 0;
+	g_cPlayerInfo[playerid][e_cbLastAmmo] = 0;
+  	g_cPlayerInfo[playerid][e_cbFrames] = 0;
+  	g_cPlayerInfo[playerid][e_cbDrunkLevel] = 0;
+  	g_cPlayerInfo[playerid][e_cbTarget] = 0;
+  	g_cPlayerInfo[playerid][e_cbAnimation] = 0;
+  	g_cPlayerInfo[playerid][e_cbHoverColor] = 0;
+ 	g_cPlayerInfo[playerid][e_cbPacket] = 0.0;
+ 	g_cPlayerInfo[playerid][e_cbVehicle] = INVALID_VEHICLE_ID;
+    g_cPlayerInfo[playerid][e_cbFlags] = e_cbPlayerFlags:0;
+
+    for(new i = 0; i < 12; i ++)
 	{
-		g_aPlayerData[playerid][e_cbShotCounter][i] = 0;
+		g_cPlayerInfo[playerid][e_cbShotCounter][i] = 0;
 	}
 
  	#if defined CB_OnPlayerDisconnect
@@ -447,45 +519,56 @@ public OnGameModeInit()
 	#endif
 }
 
+public OnPlayerExitVehicle(playerid, vehicleid)
+{
+    g_cPlayerInfo[playerid][e_cbVehicle] = INVALID_PLAYER_ID;
+    
+    #if defined CB_OnPlayerExitVehicle
+        return CB_OnPlayerExitVehicle(playerid, vehicleid);
+	#else
+	    return 1;
+	#endif
+}
+
 public OnPlayerWeaponShot(playerid, weaponid, hittype, hitid, Float:fX, Float:fY, Float:fZ)
 {
-	if (Callback_IsDefined("OnPlayerFriendlyFire"))
+	if(Callback_IsDefined("OnPlayerFriendlyFire"))
 	{
 	    new teamid = GetPlayerTeam(playerid);
 
-		if ((teamid != NO_TEAM && hittype == BULLET_HIT_TYPE_PLAYER) && GetPlayerTeam(hitid) == teamid)
+		if((teamid != NO_TEAM && hittype == BULLET_HIT_TYPE_PLAYER) && GetPlayerTeam(hitid) == teamid)
 		{
-			CallLocalFunction("OnPlayerFriendlyFire", "ddd", playerid, hitid, weaponid);
+			CallLocalFunction("OnPlayerFriendlyFire", "iii", playerid, hitid, weaponid);
 		}
 	}
-	if (Callback_IsDefined("OnPlayerEmptyWeapon"))
+	if(Callback_IsDefined("OnPlayerEmptyWeapon") && GetPlayerWeaponState(playerid) == WEAPONSTATE_LAST_BULLET && GetPlayerAmmo(playerid) == 1)
 	{
-		if (GetPlayerWeaponState(playerid) == WEAPONSTATE_LAST_BULLET && GetPlayerAmmo(playerid) == 1)
-		{
-			CallLocalFunction("OnPlayerEmptyWeapon", "dd", playerid, weaponid);
-		}
+		CallLocalFunction("OnPlayerEmptyWeapon", "ii", playerid, weaponid);
 	}
-	if (Callback_IsDefined("OnPlayerAntiReload") && (WEAPON_COLT45 <= weaponid <= WEAPON_TEC9) && weaponid != WEAPON_SHOTGUN)
+	if(Callback_IsDefined("OnPlayerAntiReload") && (WEAPON_COLT45 <= weaponid <= WEAPON_TEC9) && weaponid != WEAPON_SHOTGUN)
 	{
 		new
-			clip = g_aMaximumClip[weaponid - WEAPON_COLT45],
-			slot = g_aClipIndex[weaponid - WEAPON_COLT45];
+			clip = Callback_GetMaxClip(weaponid),
+			index = weaponid - WEAPON_COLT45;
+			
+		g_cPlayerInfo[playerid][e_cbShotCounter][index]++;
 
-		if (++ g_aPlayerData[playerid][e_cbShotCounter][slot] > clip && (g_aPlayerData[playerid][e_cbShotCounter][slot] - clip) >= 5)
+		if((g_cPlayerInfo[playerid][e_cbShotCounter][index] - clip) >= MAX_ACCUMULATED_SHOTS)
 		{
-			CallLocalFunction("OnPlayerAntiReload", "dd", playerid, weaponid);
-            g_aPlayerData[playerid][e_cbShotCounter][slot] = 0;
+			CallLocalFunction("OnPlayerAntiReload", "ii", playerid, weaponid);
+            g_cPlayerInfo[playerid][e_cbShotCounter][index] = 0;
 		}
 	}
-	if (Callback_IsDefined("OnPlayerActionChange"))
+	if(Callback_IsDefined("OnPlayerActionChange"))
 	{
-		if (g_aPlayerData[playerid][e_cbAction] != PLAYER_ACTION_SHOOTING)
+		if(g_cPlayerInfo[playerid][e_cbAction] != PLAYER_ACTION_SHOOTING)
 		{
-	    	CallLocalFunction("OnPlayerActionChange", "ddd", playerid, g_aPlayerData[playerid][e_cbAction], PLAYER_ACTION_SHOOTING);
-	    	g_aPlayerData[playerid][e_cbAction] = PLAYER_ACTION_SHOOTING;
+	    	CallLocalFunction("OnPlayerActionChange", "iii", playerid, g_cPlayerInfo[playerid][e_cbAction], PLAYER_ACTION_SHOOTING);
+	    	g_cPlayerInfo[playerid][e_cbAction] = PLAYER_ACTION_SHOOTING;
 		}
-		g_aPlayerTicks[playerid][e_cbShootTick] = GetTickCount();
+		g_cPlayerTick[playerid][e_cbLastShot] = GetConnectedTime(playerid);
 	}
+
 	#if defined CB_OnPlayerWeaponShot
 	    return CB_OnPlayerWeaponShot(playerid, weaponid, hittype, hitid, fX, fY, fZ);
 	#else
@@ -501,212 +584,224 @@ public OnPlayerUpdate(playerid)
 		Float:health
 	;
 
- 	if (Callback_IsDefined("OnPlayerActionChange"))
+ 	if(Callback_IsDefined("OnPlayerActionChange"))
 	{
-		if (IsPlayerSkydiving(playerid) && g_aPlayerData[playerid][e_cbAction] != PLAYER_ACTION_SKYDIVING)
+		if(IsPlayerSkydiving(playerid) && g_cPlayerInfo[playerid][e_cbAction] != PLAYER_ACTION_SKYDIVING)
  		{
-	 		CallLocalFunction("OnPlayerActionChange", "ddd", playerid, g_aPlayerData[playerid][e_cbAction], PLAYER_ACTION_SKYDIVING);
-   			g_aPlayerData[playerid][e_cbAction] = PLAYER_ACTION_SKYDIVING;
+	 		CallLocalFunction("OnPlayerActionChange", "iii", playerid, g_cPlayerInfo[playerid][e_cbAction], PLAYER_ACTION_SKYDIVING);
+   			g_cPlayerInfo[playerid][e_cbAction] = PLAYER_ACTION_SKYDIVING;
  		}
- 		else if (!IsPlayerSkydiving(playerid) && g_aPlayerData[playerid][e_cbAction] == PLAYER_ACTION_SKYDIVING)
+ 		else if(!IsPlayerSkydiving(playerid) && g_cPlayerInfo[playerid][e_cbAction] == PLAYER_ACTION_SKYDIVING)
  		{
- 		    CallLocalFunction("OnPlayerActionChange", "ddd", playerid, g_aPlayerData[playerid][e_cbAction], PLAYER_ACTION_NONE);
- 		    g_aPlayerData[playerid][e_cbAction] = PLAYER_ACTION_SKYDIVING;
+ 		    CallLocalFunction("OnPlayerActionChange", "iii", playerid, g_cPlayerInfo[playerid][e_cbAction], PLAYER_ACTION_NONE);
+ 		    g_cPlayerInfo[playerid][e_cbAction] = PLAYER_ACTION_SKYDIVING;
 		}
-		else if (IsPlayerSwimming(playerid) && g_aPlayerData[playerid][e_cbAction] != PLAYER_ACTION_SWIMMING)
+		else if(IsPlayerSwimming(playerid) && g_cPlayerInfo[playerid][e_cbAction] != PLAYER_ACTION_SWIMMING)
  		{
- 		    CallLocalFunction("OnPlayerActionChange", "ddd", playerid, g_aPlayerData[playerid][e_cbAction], PLAYER_ACTION_SWIMMING);
-   			g_aPlayerData[playerid][e_cbAction] = PLAYER_ACTION_SWIMMING;
+ 		    CallLocalFunction("OnPlayerActionChange", "iii", playerid, g_cPlayerInfo[playerid][e_cbAction], PLAYER_ACTION_SWIMMING);
+   			g_cPlayerInfo[playerid][e_cbAction] = PLAYER_ACTION_SWIMMING;
  		}
- 		else if (!IsPlayerSwimming(playerid) && g_aPlayerData[playerid][e_cbAction] == PLAYER_ACTION_SWIMMING)
+ 		else if(!IsPlayerSwimming(playerid) && g_cPlayerInfo[playerid][e_cbAction] == PLAYER_ACTION_SWIMMING)
  		{
- 		    CallLocalFunction("OnPlayerActionChange", "ddd", playerid, g_aPlayerData[playerid][e_cbAction], PLAYER_ACTION_NONE);
- 		    g_aPlayerData[playerid][e_cbAction] = PLAYER_ACTION_NONE;
+ 		    CallLocalFunction("OnPlayerActionChange", "iii", playerid, g_cPlayerInfo[playerid][e_cbAction], PLAYER_ACTION_NONE);
+ 		    g_cPlayerInfo[playerid][e_cbAction] = PLAYER_ACTION_NONE;
 		}
-  		else if (GetPlayerAnimationIndex(playerid) == 1195 && g_aPlayerData[playerid][e_cbAction] != PLAYER_ACTION_JUMPING)
+        else if(g_cPlayerInfo[playerid][e_cbAction] == PLAYER_ACTION_SHOOTING && (GetConnectedTime(playerid) - g_cPlayerTick[playerid][e_cbLastShot]) > 1200)
  		{
- 		    CallLocalFunction("OnPlayerActionChange", "ddd", playerid, g_aPlayerData[playerid][e_cbAction], PLAYER_ACTION_JUMPING);
-   			g_aPlayerData[playerid][e_cbAction] = PLAYER_ACTION_JUMPING;
- 		}
- 		else if (GetPlayerAnimationIndex(playerid) != 1195 && g_aPlayerData[playerid][e_cbAction] == PLAYER_ACTION_JUMPING)
- 		{
- 		    CallLocalFunction("OnPlayerActionChange", "ddd", playerid, g_aPlayerData[playerid][e_cbAction], PLAYER_ACTION_NONE);
- 		    g_aPlayerData[playerid][e_cbAction] = PLAYER_ACTION_NONE;
-		}
-        else if (g_aPlayerData[playerid][e_cbAction] == PLAYER_ACTION_SHOOTING && (GetTickCount() - g_aPlayerTicks[playerid][e_cbShootTick]) > 1200)
- 		{
- 		    CallLocalFunction("OnPlayerActionChange", "ddd", playerid, g_aPlayerData[playerid][e_cbAction], PLAYER_ACTION_NONE);
- 		    g_aPlayerData[playerid][e_cbAction] = PLAYER_ACTION_NONE;
+ 		    CallLocalFunction("OnPlayerActionChange", "iii", playerid, g_cPlayerInfo[playerid][e_cbAction], PLAYER_ACTION_NONE);
+ 		    g_cPlayerInfo[playerid][e_cbAction] = PLAYER_ACTION_NONE;
 		}
 	}
-	if (Callback_IsDefined("OnPlayerBurning") && BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbBurning))
+
+	if(Callback_IsDefined("OnPlayerBurn") && (GetConnectedTime(playerid) - g_cPlayerTick[playerid][e_cbBurnTick]) >= 1500 && CB_GetPlayerFlag(playerid, e_cbBurning))
 	{
-		if ((GetTickCount() - g_aPlayerTicks[playerid][e_cbBurnTick]) >= 1500)
-		{
-  			BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbBurning);
-	    	CallLocalFunction("OnPlayerBurning", "dd", playerid, 0);
-		}
+		CB_DisableFlag(playerid, e_cbBurning);
+ 		CallLocalFunction("OnPlayerBurn", "ii", playerid, 0);
 	}
-	if (GetPlayerState(playerid) == PLAYER_STATE_ONFOOT)
+
+	switch(GetPlayerState(playerid))
 	{
-	    if (Callback_IsDefined("OnPlayerTargetPlayer"))
+		case PLAYER_STATE_ONFOOT:
 		{
- 			if (!g_aPlayerData[playerid][e_cbTarget] && GetPlayerTargetPlayer(playerid) == INVALID_PLAYER_ID)
-			{
-				g_aPlayerData[playerid][e_cbTarget] = INVALID_PLAYER_ID;
+		    if(Callback_IsDefined("OnPlayerSprint"))
+		    {
+		        if(IsPlayerSprinting(playerid) && !CB_GetPlayerFlag(playerid, e_cbSprinting))
+		        {
+		            CB_EnableFlag(playerid, e_cbSprinting);
+		            CallLocalFunction("OnPlayerSprint", "ii", playerid, 1);
+		        }
+		        else
+		        {
+		            CB_DisableFlag(playerid, e_cbSprinting);
+		            CallLocalFunction("OnPlayerSprint", "ii", playerid, 0);
+		        }
 			}
-			else if (GetPlayerTargetPlayer(playerid) != g_aPlayerData[playerid][e_cbTarget])
+		    if(Callback_IsDefined("OnPlayerTargetPlayer"))
 			{
-  				CallLocalFunction("OnPlayerTargetPlayer", "ddd", playerid, g_aPlayerData[playerid][e_cbTarget], GetPlayerWeapon(playerid));
-				g_aPlayerData[playerid][e_cbTarget] = GetPlayerTargetPlayer(playerid);
-			}
-		}
-		if (Callback_IsDefined("OnPlayerReloadWeapon"))
-		{
-  			if (!BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbReloading) && (WEAPON_COLT45 <= weaponid <= WEAPON_SNIPER) && GetPlayerWeaponState(playerid) == WEAPONSTATE_RELOADING)
-   			{
-			   	BitFlag_Set(g_aPlayerData[playerid][e_cbFlags], e_cbReloading);
-				CallLocalFunction("OnPlayerReloadWeapon", "ddd", playerid, weaponid, GetPlayerAmmo(playerid));
-			}
-			else if (GetPlayerWeaponState(playerid) != WEAPONSTATE_RELOADING)
-			{
-   				BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbReloading);
-			}
-		}
-		if (Callback_IsDefined("OnPlayerUseVending") && IsPlayerNearVending(playerid))
-		{
-			if (GetPlayerAnimationIndex(playerid) == 1660 && (GetTickCount() - g_aPlayerTicks[playerid][e_cbVendingTick]) > 3500)
-			{
-				CallLocalFunction("OnPlayerUseVending", "d", playerid);
-				g_aPlayerTicks[playerid][e_cbVendingTick] = GetTickCount();
-			}
-		}
-	}
-	else if (GetPlayerState(playerid) == PLAYER_STATE_DRIVER)
-	{
-	    if (Callback_IsDefined("OnPlayerCrashVehicle"))
-	    {
-	 		new
-	   			vehicleid = GetPlayerVehicleID(playerid);
-
-			GetVehicleHealth(vehicleid, health);
-
-			if (g_aVehicleData[vehicleid][e_vHealth] > health && floatabs(g_aVehicleData[vehicleid][e_vHealth] - health) >= POTENTIAL_CRASH_DAMAGE && floatabs(g_aVehicleData[vehicleid][e_vSpeed] - Callback_GetSpeed(vehicleid)) >= POTENTIAL_SPEED_DROP)
-			{
-  				new
-			  		panels,
-				  	doors,
-				  	lights,
-				  	tires
-	  			;
-
-				GetVehicleDamageStatus(vehicleid, panels, doors, lights, tires);
-
-			    if (g_aVehicleData[vehicleid][e_vPanels] != panels || g_aVehicleData[vehicleid][e_vDoors] != doors || g_aVehicleData[vehicleid][e_vLights] != lights)
-			    {
-					CallLocalFunction("OnPlayerCrashVehicle", "ddf", playerid, vehicleid, floatsub(g_aVehicleData[vehicleid][e_vHealth], health));
+	 			if(!g_cPlayerInfo[playerid][e_cbTarget] && GetPlayerTargetPlayer(playerid) == INVALID_PLAYER_ID)
+				{
+					g_cPlayerInfo[playerid][e_cbTarget] = INVALID_PLAYER_ID;
 				}
-				GetVehicleDamageStatus(vehicleid, g_aVehicleData[vehicleid][e_vPanels], g_aVehicleData[vehicleid][e_vDoors], g_aVehicleData[vehicleid][e_vLights], tires);
+				else if(GetPlayerTargetPlayer(playerid) != g_cPlayerInfo[playerid][e_cbTarget])
+				{
+	  				CallLocalFunction("OnPlayerTargetPlayer", "iii", playerid, g_cPlayerInfo[playerid][e_cbTarget], GetPlayerWeapon(playerid));
+					g_cPlayerInfo[playerid][e_cbTarget] = GetPlayerTargetPlayer(playerid);
+				}
 			}
-			g_aVehicleData[vehicleid][e_vHealth] = health;
-			g_aVehicleData[vehicleid][e_vSpeed] = Callback_GetSpeed(vehicleid);
+			if(Callback_IsDefined("OnPlayerReloadWeapon"))
+			{
+	  			if(!CB_GetPlayerFlag(playerid, e_cbReloading) && (WEAPON_COLT45 <= weaponid <= WEAPON_SNIPER) && GetPlayerWeaponState(playerid) == WEAPONSTATE_RELOADING)
+	   			{
+				   	CB_EnableFlag(playerid, e_cbReloading);
+					CallLocalFunction("OnPlayerReloadWeapon", "iii", playerid, weaponid, GetPlayerAmmo(playerid));
+				}
+				else if(GetPlayerWeaponState(playerid) != WEAPONSTATE_RELOADING)
+				{
+	   				CB_DisableFlag(playerid, e_cbReloading);
+				}
+			}
+			if(Callback_IsDefined("OnPlayerUseVending") && IsPlayerNearVending(playerid))
+			{
+				if(GetPlayerAnimationIndex(playerid) == 1660 && (GetConnectedTime(playerid) - g_cPlayerTick[playerid][e_cbVendingTick]) > 3500)
+				{
+					CallLocalFunction("OnPlayerUseVending", "i", playerid);
+					g_cPlayerTick[playerid][e_cbVendingTick] = GetConnectedTime(playerid);
+				}
+			}
+			if(Callback_IsDefined("OnPlayerJump") && (GetConnectedTime(playerid) - g_cPlayerTick[playerid][e_cbLastJump] >= 1000) && IsPlayerJumping(playerid))
+			{
+   				CallLocalFunction("OnPlayerJump", "i", playerid);
+			    g_cPlayerTick[playerid][e_cbLastJump] = GetConnectedTime(playerid);
+			}
+			
+		}
+		case PLAYER_STATE_DRIVER:
+		{
+		    if(Callback_IsDefined("OnPlayerCrashVehicle"))
+		    {
+		 		new
+		   			vehicleid = GetPlayerVehicleID(playerid),
+				   	panels,
+				   	doors,
+				   	lights,
+				   	tires
+		   		;
+
+				GetVehicleHealth(vehicleid, health);
+
+				if(g_cVehicleInfo[vehicleid][e_vHealth] > health && floatabs(g_cVehicleInfo[vehicleid][e_vHealth] - health) >= POTENTIAL_CRASH_DAMAGE && floatabs(g_cVehicleInfo[vehicleid][e_vSpeed] - Callback_GetSpeed(vehicleid)) >= 5.0)
+				{
+					GetVehicleDamageStatus(vehicleid, panels, doors, lights, tires);
+
+				    if(g_cVehicleInfo[vehicleid][e_vPanels] != panels || g_cVehicleInfo[vehicleid][e_vDoors] != doors || g_cVehicleInfo[vehicleid][e_vLights] != lights)
+				    {
+						CallLocalFunction("OnPlayerCrashVehicle", "iif", playerid, vehicleid, floatsub(g_cVehicleInfo[vehicleid][e_vHealth], health));
+					}
+
+					GetVehicleDamageStatus(vehicleid, g_cVehicleInfo[vehicleid][e_vPanels], g_cVehicleInfo[vehicleid][e_vDoors], g_cVehicleInfo[vehicleid][e_vLights], tires);
+				}
+				g_cVehicleInfo[vehicleid][e_vHealth] = health;
+				g_cVehicleInfo[vehicleid][e_vSpeed] = Callback_GetSpeed(vehicleid);
+			}
 		}
 	}
-	if (Callback_IsDefined("OnPlayerFPSChange"))
+
+	if(Callback_IsDefined("OnPlayerFPSChange"))
 	{
-		if (GetPlayerDrunkLevel(playerid) < 100)
+	    new
+	        amount = g_cPlayerInfo[playerid][e_cbDrunkLevel] - level;
+	
+		if(GetPlayerDrunkLevel(playerid) < 100)
 		{
     		SetPlayerDrunkLevel(playerid, 2000);
 		}
-		else if (g_aPlayerData[playerid][e_cbDrunkLevel] != level)
-	    {
-	        new
-				amount = (g_aPlayerData[playerid][e_cbDrunkLevel] - level);
-
-		    if ((0 <= amount <= 200) && g_aPlayerData[playerid][e_cbFrames] != amount)
+		else if(g_cPlayerInfo[playerid][e_cbDrunkLevel] != level)
+		{
+		    if((0 <= amount <= 200) && g_cPlayerInfo[playerid][e_cbFrames] != amount)
 		    {
-		        if (g_aPlayerData[playerid][e_cbFrames] < 0)
+		        if(g_cPlayerInfo[playerid][e_cbFrames] < 0)
 		        {
-		            g_aPlayerData[playerid][e_cbFrames] = 0;
+		            g_cPlayerInfo[playerid][e_cbFrames] = 0;
 		        }
-				CallLocalFunction("OnPlayerFPSChange", "ddd", playerid, g_aPlayerData[playerid][e_cbFrames], amount);
+				CallLocalFunction("OnPlayerFPSChange", "iii", playerid, g_cPlayerInfo[playerid][e_cbFrames], amount);
 			}
-			g_aPlayerData[playerid][e_cbFrames] = amount;
-			g_aPlayerData[playerid][e_cbDrunkLevel] = level;
+			g_cPlayerInfo[playerid][e_cbFrames] = amount;
+			g_cPlayerInfo[playerid][e_cbDrunkLevel] = level;
 		}
 	}
-	if (Callback_IsDefined("OnPlayerPacketLoss"))
+	if(Callback_IsDefined("OnPlayerPacketLoss"))
 	{
 		new
 			Float:packet = NetStats_PacketLossPercent(playerid);
 
-		if (floatcmp(packet, 0.0) != 0 && floatcmp(packet, g_aPlayerData[playerid][e_cbPacket]) != 0)
+		if(floatcmp(packet, 0.0) != 0 && floatcmp(packet, g_cPlayerInfo[playerid][e_cbPacket]) != 0)
 		{
-		    CallLocalFunction("OnPlayerPacketLoss", "dff", playerid, g_aPlayerData[playerid][e_cbPacket], packet);
-			g_aPlayerData[playerid][e_cbPacket] = packet;
+		    CallLocalFunction("OnPlayerPacketLoss", "iff", playerid, g_cPlayerInfo[playerid][e_cbPacket], packet);
+			g_cPlayerInfo[playerid][e_cbPacket] = packet;
 		}
 	}
-	if (Callback_IsDefined("OnPlayerAnimationPlay"))
+	if(Callback_IsDefined("OnPlayerAnimationPlay"))
 	{
-	    if (BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbAnimationSet) && g_aPlayerData[playerid][e_cbAnimation] != GetPlayerAnimationIndex(playerid))
+	    new
+     		animname[32],
+       		animlib[32];
+	
+	    if(CB_GetPlayerFlag(playerid, e_cbAnimationSet) && g_cPlayerInfo[playerid][e_cbAnimation] != GetPlayerAnimationIndex(playerid))
 	    {
-     		new
-	            animname[32],
-	            animlib[32];
+	        CB_DisableFlag(playerid, e_cbAnimationSet);
 
-	        BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbAnimationSet);
-
-	        GetAnimationName(g_aPlayerData[playerid][e_cbAnimation], animlib, sizeof(animlib), animname, sizeof(animname));
-	        CallLocalFunction("OnPlayerAnimationPlay", "dss", playerid, animlib, animname);
+	        GetAnimationName(g_cPlayerInfo[playerid][e_cbAnimation], animlib, sizeof(animlib), animname, sizeof(animname));
+	        CallLocalFunction("OnPlayerAnimationPlay", "iss", playerid, animlib, animname);
 	    }
 	}
-	if (Callback_IsDefined("OnPlayerUseCamera") || Callback_IsDefined("OnPlayerSprayAtVehicle"))
+	if(Callback_IsDefined("OnPlayerUseCamera") || Callback_IsDefined("OnPlayerSprayAtVehicle"))
 	{
 	    new
 	        ammo = GetPlayerAmmo(playerid);
 
-	    if (g_aPlayerData[playerid][e_cbLastAmmo] != ammo)
+	    if(g_cPlayerInfo[playerid][e_cbLastAmmo] != ammo)
 	    {
-	        if (GetPlayerWeapon(playerid) == WEAPON_CAMERA && g_aPlayerData[playerid][e_cbLastAmmo] > ammo)
+	        if(GetPlayerWeapon(playerid) == WEAPON_CAMERA && g_cPlayerInfo[playerid][e_cbLastAmmo] > ammo)
 	        {
-	            CallLocalFunction("OnPlayerUseCamera", "d", playerid);
+	            CallLocalFunction("OnPlayerUseCamera", "i", playerid);
 	        }
-	        else if (GetPlayerWeapon(playerid) == WEAPON_SPRAYCAN && g_aPlayerData[playerid][e_cbLastAmmo] > ammo)
+	        else if(GetPlayerWeapon(playerid) == WEAPON_SPRAYCAN && g_cPlayerInfo[playerid][e_cbLastAmmo] > ammo)
 	        {
 	            new id = CB_GetVehicleInFrontOfPlayer(playerid);
 
-				if (id != INVALID_VEHICLE_ID && IsPlayerSprayingVehicle(playerid, id))
+				if(id != INVALID_VEHICLE_ID && IsPlayerSprayingVehicle(playerid, id))
 				{
-					CallLocalFunction("OnPlayerSprayAtVehicle", "dd", playerid, id);
+					CallLocalFunction("OnPlayerSprayAtVehicle", "ii", playerid, id);
 				}
 			}
-	        g_aPlayerData[playerid][e_cbLastAmmo] = ammo;
+	        g_cPlayerInfo[playerid][e_cbLastAmmo] = ammo;
 		}
 	}
-	if (Callback_IsDefined("OnPlayerAntiReload"))
+	if(Callback_IsDefined("OnPlayerAntiReload"))
 	{
-		if (g_aPlayerData[playerid][e_cbLastWeapon] != weaponid)
+		if(g_cPlayerInfo[playerid][e_cbLastWeapon] != weaponid)
 		{
 		    new
-				lastgun = g_aPlayerData[playerid][e_cbLastWeapon];
+				lastweapon = g_cPlayerInfo[playerid][e_cbLastWeapon];
 
-    		if ((WEAPON_COLT45 <= lastgun <= WEAPON_TEC9) && lastgun != WEAPON_SHOTGUN)
+    		if((WEAPON_COLT45 <= lastweapon <= WEAPON_TEC9) && lastweapon != WEAPON_SHOTGUN)
 			{
-				g_aPlayerData[playerid][e_cbShotCounter][g_aClipIndex[lastgun - WEAPON_COLT45]] = 0;
+				g_cPlayerInfo[playerid][e_cbShotCounter][lastweapon - WEAPON_COLT45] = 0;
 			}
-			g_aPlayerData[playerid][e_cbLastWeapon] = weaponid;
+			g_cPlayerInfo[playerid][e_cbLastWeapon] = weaponid;
 		}
 		else
 		{
-			if ((WEAPON_COLT45 <= weaponid <= WEAPON_TEC9) && weaponid != WEAPON_SHOTGUN && GetPlayerWeaponState(playerid) == WEAPONSTATE_RELOADING)
+			if((WEAPON_COLT45 <= weaponid <= WEAPON_TEC9) && weaponid != WEAPON_SHOTGUN && GetPlayerWeaponState(playerid) == WEAPONSTATE_RELOADING)
 			{
-				g_aPlayerData[playerid][e_cbShotCounter][g_aClipIndex[weaponid - WEAPON_COLT45]] = 0;
+				g_cPlayerInfo[playerid][e_cbShotCounter][weaponid - WEAPON_COLT45] = 0;
 			}
 		}
 	}
-	BitFlag_Set(g_aPlayerData[playerid][e_cbFlags], e_cbUpdate);
 
-	g_aPlayerTicks[playerid][e_cbUpdateTick] = GetTickCount();
+	CB_EnableFlag(playerid, e_cbUpdate);
+
+	g_cPlayerTick[playerid][e_cbLastUpdate] = GetConnectedTime(playerid);
 
 	#if defined CB_OnPlayerUpdate
 		return CB_OnPlayerUpdate(playerid);
@@ -719,34 +814,36 @@ public OnPlayerStateChange(playerid, newstate, oldstate)
 {
 	new vehicleid = GetPlayerVehicleID(playerid);
 
-	if (Callback_IsDefined("OnPlayerCrashVehicle"))
+	if(Callback_IsDefined("OnPlayerCrashVehicle"))
 	{
-	    if (newstate == PLAYER_STATE_DRIVER)
+	    if(newstate == PLAYER_STATE_DRIVER)
 	    {
-	        GetVehicleHealth(vehicleid, g_aVehicleData[vehicleid][e_vHealth]);
+	        GetVehicleHealth(vehicleid, g_cVehicleInfo[vehicleid][e_vHealth]);
 		}
 	}
-	if (Callback_IsDefined("OnPlayerJackVehicle"))
+	if(Callback_IsDefined("OnPlayerJackVehicle"))
 	{
-		if (newstate == PLAYER_STATE_DRIVER)
+		if(newstate == PLAYER_STATE_DRIVER)
 		{
-			g_aPlayerData[playerid][e_cbLastVehicle] = vehicleid;
+			g_cPlayerInfo[playerid][e_cbVehicle] = vehicleid;
 		}
-		else if (newstate == PLAYER_STATE_ONFOOT && oldstate == PLAYER_STATE_DRIVER)
+		else if(newstate == PLAYER_STATE_ONFOOT && oldstate == PLAYER_STATE_DRIVER)
 		{
-			new
-				driverid = Callback_GetDriver(g_aPlayerData[playerid][e_cbLastVehicle]);
+		    new
+				driverid = Callback_GetDriver(g_cPlayerInfo[playerid][e_cbVehicle]);
 
-			if (driverid != INVALID_PLAYER_ID)
+			if(driverid != INVALID_PLAYER_ID)
 			{
-			    CallLocalFunction("OnPlayerJackVehicle", "ddd", driverid, playerid, g_aPlayerData[playerid][e_cbLastVehicle]);
+				CallLocalFunction("OnPlayerJackVehicle", "iii", driverid, playerid, g_cPlayerInfo[playerid][e_cbVehicle]);
 			}
-			g_aPlayerData[playerid][e_cbLastVehicle] = INVALID_VEHICLE_ID;
+
+			g_cPlayerInfo[playerid][e_cbVehicle] = INVALID_VEHICLE_ID;
 		}
 	}
-	if (newstate == PLAYER_STATE_WASTED)
+
+	if(newstate == PLAYER_STATE_WASTED)
 	{
-		g_aPlayerData[playerid][e_cbAction] = PLAYER_ACTION_NONE;
+		g_cPlayerInfo[playerid][e_cbAction] = PLAYER_ACTION_NONE;
 	}
 
 	#if defined CB_OnPlayerStateChange
@@ -760,31 +857,31 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 {
 	new weaponid = GetPlayerWeapon(playerid);
 
-	if (GetPlayerState(playerid) != PLAYER_STATE_SPECTATING && GetPlayerState(playerid) != PLAYER_STATE_SPAWNED && GetPlayerState(playerid) != PLAYER_STATE_WASTED)
+	if(GetPlayerState(playerid) != PLAYER_STATE_SPECTATING && GetPlayerState(playerid) != PLAYER_STATE_SPAWNED && GetPlayerState(playerid) != PLAYER_STATE_WASTED)
 	{
-	    if (Callback_IsDefined("OnPlayerHoldingKey"))
+	    if(Callback_IsDefined("OnPlayerHoldingKey"))
 		{
-			if (!BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbHolding))
+			if(!CB_GetPlayerFlag(playerid, e_cbHolding))
 			{
-			    BitFlag_Set(g_aPlayerData[playerid][e_cbFlags], e_cbHolding);
+			    CB_EnableFlag(playerid, e_cbHolding);
 
-		    	g_aPlayerTicks[playerid][e_cbTickCount] = GetTickCount();
-				g_aPlayerData[playerid][e_cbHoldingTimer] = SetTimerEx("Callback_HoldTimer", 200, true, "dd", playerid, newkeys);
+		    	g_cPlayerTick[playerid][e_cbTickCount] = GetConnectedTime(playerid);
+				g_cPlayerInfo[playerid][e_cbHoldingTimer] = SetTimerEx("Callback_HoldTimer", 200, true, "ii", playerid, newkeys);
 			}
 		}
-		if (Callback_IsDefined("OnPlayerAiming"))
+		if(GetPlayerState(playerid) == PLAYER_STATE_ONFOOT)
 		{
-			if (GetPlayerState(playerid) == PLAYER_STATE_ONFOOT && (WEAPON_COLT45 <= weaponid <= WEAPON_CAMERA) && weaponid != WEAPON_BOMB)
+			if(Callback_IsDefined("OnPlayerAiming") && (WEAPON_COLT45 <= weaponid <= WEAPON_CAMERA) && weaponid != WEAPON_BOMB)
 			{
-				if (!BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbAiming) && (newkeys & KEY_HANDBRAKE) & KEY_HANDBRAKE)
+				if(!CB_GetPlayerFlag(playerid, e_cbAiming) && (newkeys & KEY_HANDBRAKE) & KEY_HANDBRAKE)
 				{
-	                BitFlag_Set(g_aPlayerData[playerid][e_cbFlags], e_cbAiming);
-		    		CallLocalFunction("OnPlayerAiming", "ddd", playerid, weaponid, 1);
+	                CB_EnableFlag(playerid, e_cbAiming);
+		    		CallLocalFunction("OnPlayerAiming", "iii", playerid, weaponid, 1);
 				}
-				else if ((newkeys & KEY_HANDBRAKE) != KEY_HANDBRAKE && (oldkeys & KEY_HANDBRAKE) == KEY_HANDBRAKE)
+				else if((newkeys & KEY_HANDBRAKE) != KEY_HANDBRAKE && (oldkeys & KEY_HANDBRAKE) == KEY_HANDBRAKE)
 				{
-				    BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbAiming);
-				    CallLocalFunction("OnPlayerAiming", "ddd", playerid, weaponid, 0);
+				    CB_DisableFlag(playerid, e_cbAiming);
+				    CallLocalFunction("OnPlayerAiming", "iii", playerid, weaponid, 0);
 				}
 			}
 		}
@@ -799,14 +896,15 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 
 public OnPlayerClickTextDraw(playerid, Text:clickedid)
 {
-	if (Callback_IsDefined("OnPlayerHideCursor"))
+	if(Callback_IsDefined("OnPlayerHideCursor"))
 	{
-		if (clickedid == Text:INVALID_TEXT_DRAW && BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbSelection))
+		if(clickedid == Text:INVALID_TEXT_DRAW && CB_GetPlayerFlag(playerid, e_cbSelection))
 		{
-	    	BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbSelection);
-			CallLocalFunction("OnPlayerHideCursor", "dd", playerid, g_aPlayerData[playerid][e_cbHoverColor]);
+	    	CB_DisableFlag(playerid, e_cbSelection);
+			CallLocalFunction("OnPlayerHideCursor", "ii", playerid, g_cPlayerInfo[playerid][e_cbHoverColor]);
 		}
 	}
+	
 	#if defined CB_OnPlayerClickTextDraw
 		return CB_OnPlayerClickTextDraw(playerid, clickedid);
 	#else
@@ -816,33 +914,24 @@ public OnPlayerClickTextDraw(playerid, Text:clickedid)
 
 public OnPlayerTakeDamage(playerid, issuerid, Float:amount, weaponid, bodypart)
 {
-	if (Callback_IsDefined("OnPlayerFall") && weaponid == WEAPON_COLLISION)
+	if(Callback_IsDefined("OnPlayerFall") && weaponid == WEAPON_COLLISION && issuerid == INVALID_PLAYER_ID && amount >= 4.95)
 	{
-	    if (bodypart == 3 && issuerid == INVALID_PLAYER_ID)
-		{
-		    new Float:health;
-
-	     	GetPlayerHealth(playerid, health);
-
-			if (amount >= 10.0 && health > amount)
-			{
-			    CallLocalFunction("OnPlayerFall", "df", playerid, amount);
-			}
-		}
+		CallLocalFunction("OnPlayerFall", "if", playerid, amount);
 	}
-    if (Callback_IsDefined("OnPlayerRamPlayer") && weaponid == WEAPON_VEHICLE && issuerid != INVALID_PLAYER_ID)
+    if(Callback_IsDefined("OnPlayerRamPlayer") && weaponid == WEAPON_VEHICLE && issuerid != INVALID_PLAYER_ID)
 	{
-	    CallLocalFunction("OnPlayerRamPlayer", "dddf", playerid, issuerid, GetPlayerVehicleID(issuerid), amount);
+	    CallLocalFunction("OnPlayerRamPlayer", "iiif", playerid, issuerid, GetPlayerVehicleID(issuerid), amount);
 	}
-	if (Callback_IsDefined("OnPlayerBurning") && weaponid == WEAPON_FLAMETHROWER)
+	if(Callback_IsDefined("OnPlayerBurn") && weaponid == WEAPON_FLAMETHROWER)
 	{
-	    if (!BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbBurning))
+	    if(!CB_GetPlayerFlag(playerid, e_cbBurning))
 	    {
-	        BitFlag_Set(g_aPlayerData[playerid][e_cbFlags], e_cbBurning);
-        	CallLocalFunction("OnPlayerBurning", "dd", playerid, 1);
+	        CB_EnableFlag(playerid, e_cbBurning);
+        	CallLocalFunction("OnPlayerBurn", "ii", playerid, 1);
 		}
-		g_aPlayerTicks[playerid][e_cbBurnTick] = GetTickCount();
+		g_cPlayerTick[playerid][e_cbBurnTick] = GetConnectedTime(playerid);
 	}
+
 	#if defined CB_OnPlayerTakeDamage
 		return CB_OnPlayerTakeDamage(playerid, issuerid, amount, weaponid, bodypart);
 	#else
@@ -850,12 +939,12 @@ public OnPlayerTakeDamage(playerid, issuerid, Float:amount, weaponid, bodypart)
 	#endif
 }
 
-forward Callback_Animation(playerid);
-public Callback_Animation(playerid)
+forward Callback_CheckAnimation(playerid);
+public Callback_CheckAnimation(playerid)
 {
-    g_aPlayerData[playerid][e_cbAnimation] = GetPlayerAnimationIndex(playerid);
+    g_cPlayerInfo[playerid][e_cbAnimation] = GetPlayerAnimationIndex(playerid);
 
-	BitFlag_Set(g_aPlayerData[playerid][e_cbFlags], e_cbAnimationSet);
+	CB_EnableFlag(playerid, e_cbAnimationSet);
 }
 
 forward Callback_HoldTimer(playerid, key);
@@ -865,54 +954,55 @@ public Callback_HoldTimer(playerid, key)
 
     GetPlayerKeys(playerid, keys, ud, lr);
 
-    if (keys & key)
+    if(keys & key)
     {
-        if (!BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbPressed))
+        if(!CB_GetPlayerFlag(playerid, e_cbPressed))
         {
-            BitFlag_Set(g_aPlayerData[playerid][e_cbFlags], e_cbPressed);
+            CB_EnableFlag(playerid, e_cbPressed);
         }
-        CallLocalFunction("OnPlayerHoldingKey", "dd", playerid, key);
+        CallLocalFunction("OnPlayerHoldingKey", "ii", playerid, key);
     }
     else
     {
-        if (Callback_IsDefined("OnPlayerReleaseKey") && BitFlag_Status(g_aPlayerData[playerid][e_cbFlags], e_cbPressed))
+        if(Callback_IsDefined("OnPlayerReleaseKey") && CB_GetPlayerFlag(playerid, e_cbPressed))
         {
-            CallLocalFunction("OnPlayerReleaseKey", "ddd", playerid, key, (GetTickCount() - g_aPlayerTicks[playerid][e_cbTickCount]));
+            CallLocalFunction("OnPlayerReleaseKey", "iii", playerid, key, (GetConnectedTime(playerid) - g_cPlayerTick[playerid][e_cbTickCount]));
         }
-       	KillTimer(g_aPlayerData[playerid][e_cbHoldingTimer]);
 
-    	BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbPressed);
-    	BitFlag_Unset(g_aPlayerData[playerid][e_cbFlags], e_cbHolding);
+       	KillTimer(g_cPlayerInfo[playerid][e_cbHoldingTimer]);
+
+    	CB_DisableFlag(playerid, e_cbPressed);
+    	CB_DisableFlag(playerid, e_cbHolding);
     }
 }
 
 forward Callback_TabCheck();
 public Callback_TabCheck()
 {
-	for (new i = 0, l = GetMaxPlayers(); i != l; i ++)
+	for(new i = 0, l = GetMaxPlayers(); i != l; i ++)
 	{
-	    switch (GetPlayerState(i))
+	    switch(GetPlayerState(i))
 	    {
 	        case PLAYER_STATE_ONFOOT, PLAYER_STATE_DRIVER, PLAYER_STATE_PASSENGER:
 	        {
-				if (BitFlag_Status(g_aPlayerData[i][e_cbFlags], e_cbUpdate))
+				if(CB_GetPlayerFlag(i, e_cbUpdate))
 				{
-		    		if (Callback_IsDefined("OnPlayerResume") && BitFlag_Status(g_aPlayerData[i][e_cbFlags], e_cbPaused))
+		    		if(Callback_IsDefined("OnPlayerResume") && CB_GetPlayerFlag(i, e_cbPaused))
 		    		{
-						CallLocalFunction("OnPlayerResume", "dd", i, GetTickCount() - g_aPlayerTicks[i][e_cbTickCount]);
+						CallLocalFunction("OnPlayerResume", "ii", i, GetConnectedTime(i) - g_cPlayerTick[i][e_cbTickCount]);
 					}
-		            BitFlag_Unset(g_aPlayerData[i][e_cbFlags], e_cbUpdate);
-		            BitFlag_Unset(g_aPlayerData[i][e_cbFlags], e_cbPaused);
+		            CB_DisableFlag(i, e_cbUpdate);
+		            CB_DisableFlag(i, e_cbPaused);
 				}
-				else if (Callback_IsDefined("OnPlayerPause"))
+				else if(Callback_IsDefined("OnPlayerPause"))
 				{
-					if (!BitFlag_Status(g_aPlayerData[i][e_cbFlags], e_cbPaused) && (GetTickCount() - g_aPlayerTicks[i][e_cbUpdateTick]) >= 4000)
+					if(!CB_GetPlayerFlag(i, e_cbPaused) && (GetConnectedTime(i) - g_cPlayerTick[i][e_cbLastUpdate]) >= 4000)
 					{
-				    	g_aPlayerTicks[i][e_cbTickCount] = GetTickCount();
+				    	g_cPlayerTick[i][e_cbTickCount] = GetConnectedTime(i);
 
-						BitFlag_Set(g_aPlayerData[i][e_cbFlags], e_cbPaused);
+						CB_EnableFlag(i, e_cbPaused);
 
-						CallLocalFunction("OnPlayerPause", "d", i);
+						CallLocalFunction("OnPlayerPause", "i", i);
 					}
 				}
 			}
@@ -948,6 +1038,12 @@ public Callback_TabCheck()
 	#undef OnGameModeInit
 #else
 	#define _ALS_OnGameModeInit
+#endif
+
+#if defined _ALS_OnPlayerExitVehicle
+	#undef OnPlayerExitVehicle
+#else
+	#define _ALS_OnPlayerExitVehicle
 #endif
 
 #if defined _ALS_OnPlayerDisconnect
@@ -992,11 +1088,18 @@ public Callback_TabCheck()
 	#define _ALS_OnPlayerTakeDamage
 #endif
 
+#if defined _ALS_OnPlayerDeath
+	#undef OnPlayerDeath
+#else
+	#define _ALS_OnPlayerDeath
+#endif
+
 #define ApplyAnimation          CB_ApplyAnimation
 #define SelectTextDraw          CB_SelectTextDraw
 #define CancelSelectTextDraw    CB_CancelSelectTextDraw
 #define OnFilterScriptInit  	CB_OnFilterScriptInit
 #define OnGameModeInit 			CB_OnGameModeInit
+#define OnPlayerExitVehicle     CB_OnPlayerExitVehicle
 #define OnPlayerDisconnect      CB_OnPlayerDisconnect
 #define OnPlayerUpdate 			CB_OnPlayerUpdate
 #define OnPlayerStateChange  	CB_OnPlayerStateChange
@@ -1004,6 +1107,7 @@ public Callback_TabCheck()
 #define OnPlayerWeaponShot      CB_OnPlayerWeaponShot
 #define OnPlayerClickTextDraw   CB_OnPlayerClickTextDraw
 #define OnPlayerTakeDamage      CB_OnPlayerTakeDamage
+#define OnPlayerDeath           CB_OnPlayerDeath
 
 #if defined CB_OnPlayerUpdate
 	forward CB_OnPlayerUpdate(playerid);
@@ -1015,6 +1119,10 @@ public Callback_TabCheck()
 
 #if defined CB_OnGameModeInit
 	forward CB_OnGameModeInit();
+#endif
+
+#if defined CB_OnPlayerExitVehicle
+	forward CB_OnPlayerExitVehicle(playerid, vehicleid);
 #endif
 
 #if defined CB_OnPlayerDisconnect
@@ -1039,4 +1147,8 @@ public Callback_TabCheck()
 
 #if defined CB_OnPlayerTakeDamage
 	forward CB_OnPlayerTakeDamage(playerid, issuerid, Float:amount, weaponid, bodypart);
+#endif
+
+#if defined CB_OnPlayerDeath
+	forward CB_OnPlayerDeath(playerid, killerid, reason);
 #endif
