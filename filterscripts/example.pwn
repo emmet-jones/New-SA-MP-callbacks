@@ -132,5 +132,3 @@ public OnPlayerSprint(playerid, status)
 {
 	return 1;
 }
-}
-}
