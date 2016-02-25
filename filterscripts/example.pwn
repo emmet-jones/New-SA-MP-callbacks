@@ -102,7 +102,7 @@ public OnPlayerAiming(playerid, weaponid, status)
     return 1;
 }
 
-public OnPlayerActionChange(playerid, newaction, oldaction)
+public OnPlayerActionChange(playerid, oldaction, newaction)
 {
     return 1;
 }
