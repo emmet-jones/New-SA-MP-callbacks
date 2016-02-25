@@ -11,7 +11,7 @@ The following callbacks are included with this library:
 // Called when a player pauses their game.
 forward OnPlayerPause(playerid);
 
-// Called when a player returns to the game.
+// Called when a player resumes their game.
 forward OnPlayerResume(playerid, time);
 
 // Called when a player starts holding a key.
@@ -20,10 +20,10 @@ forward OnPlayerHoldingKey(playerid, keys);
 // Called when a player releases a key.
 forward OnPlayerReleaseKey(playerid, keys, time);
 
-// Called when a player falls from a tall height.
+// Called when a player falls and loses damage.
 forward OnPlayerFall(playerid, Float:damage);
 
-// Called when a player loses packets.
+// Called when a player experiences packet loss.
 forward OnPlayerPacketLoss(playerid, Float:oldloss, Float:newloss);
 
 // Called when a player crashes their vehicle.
@@ -59,13 +59,13 @@ forward OnPlayerAnimationPlay(playerid, animlib[], animname[]);
 // Called when a player is reloading their weapon.
 forward OnPlayerReloadWeapon(playerid, weaponid, ammo);
 
-// Called when a player is burning from fire.
-forward OnPlayerBurning(playerid, status);
+// Called when a player starts or stops burning from fire.
+forward OnPlayerBurn(playerid, status);
 
-// Called when a player aims a weapon.
+// Called when a player starts or stops aiming a weapon.
 forward OnPlayerAiming(playerid, weaponid, status);
 
-// Called when a player's action changes;
+// Called when a player's action changes.
 forward OnPlayerActionChange(playerid, oldaction, newaction);
 
 // Called when a player rams another player.
@@ -76,6 +76,12 @@ forward OnPlayerUseCamera(playerid);
 
 // Called when a player sprays a spraycan towards a vehicle.
 forward OnPlayerSprayAtVehicle(playerid, vehicleid);
+
+// Called when a player jumps by pressing the jump key.
+forward OnPlayerJump(playerid);
+
+// Called when a player starts or stops sprinting.
+forward OnPlayerSprint(playerid, status);
 ```
 
 Functions
@@ -101,6 +107,12 @@ stock IsPlayerBurning(playerid);
 
 // Returns 1 if the player is aiming.
 stock IsPlayerAiming(playerid);
+
+// Returns 1 if the player is jumping.
+stock IsPlayerJumping(playerid);
+
+// Returns 1 if the player is sprinting.
+stock IsPlayerSprinting(playerid);
 
 // Returns 1 if the player is near any vending machine.
 stock IsPlayerNearVending(playerid);
