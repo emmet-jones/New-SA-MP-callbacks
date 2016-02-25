@@ -4,6 +4,7 @@
 	This filterscripts simply defines all of the callbacks.
 	You don't need this script to run callbacks.inc.
 */
+
 #include <a_samp>
 #include <callbacks>
 
