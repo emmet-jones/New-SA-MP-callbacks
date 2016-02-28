@@ -583,7 +583,7 @@ stock CB_AddStaticVehicle(modelid, Float:x, Float:y, Float:z, Float:rotation, co
 stock CB_AddStaticVehicleEx(modelid, Float:x, Float:y, Float:z, Float:rotation, color1, color2, respawn_delay, addsiren = 0)
 {
 	new
-	    vehicleid = AddStaticVehicleEx(modelid, x, y, z, rotation, color1, color2, respawn_delay, addsiren = 0);
+	    vehicleid = AddStaticVehicleEx(modelid, x, y, z, rotation, color1, color2, respawn_delay, addsiren);
 
 	if(vehicleid != INVALID_VEHICLE_ID)
 	{
