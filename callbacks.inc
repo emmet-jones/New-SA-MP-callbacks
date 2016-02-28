@@ -410,25 +410,6 @@ stock static Float:Callback_GetSpeed(vehicleid)
 	return (floatsqroot((fX * fX) + (fY * fY) + (fZ * fZ)) * 100);
 }
 
-stock static Callback_IsVehicleInPoint(vehicleid, Float:range, Float:x, Float:y, Float:z)
-{
-	// Checks if a vehicle is in range of a point.
-
-	new
-		Float:fX,
-		Float:fY,
-		Float:fZ
-	;
-
-	GetVehiclePos(vehicleid, fX, fY, fZ);
-
-	fX -= x;
-	fY -= y;
-	fZ -= z;
-
-	return ((fX * fX) + (fY * fY) + (fZ * fZ)) < (range * range);
-}
-
 // --------------------------------------------------
 // External functions
 // --------------------------------------------------
@@ -541,7 +522,7 @@ stock IsPlayerSprayingVehicle(playerid, vehicleid)
 		x += 2.0 * floatsin(-a, degrees);
 		y += 2.0 * floatcos(-a, degrees);
 
-		if(Callback_IsVehicleInPoint(vehicleid, 2.0, x, y, z))
+		if(GetVehicleDistanceFromPoint(vehicleid, x, y, z) <= 2.0)
 		{
 			return (1160 <= index <= 1163) || index == 1167 || index == 640;
 		}
