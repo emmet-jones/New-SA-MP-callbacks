@@ -818,7 +818,6 @@ public OnPlayerUpdate(playerid)
 						{
 							CallLocalFunction("OnPlayerUseVending", "ii", playerid, s_aVendingMachines[i][e_VENDING_MACHINE_TYPE]);
 							s_aPlayerTickInfo[playerid][e_PLAYER_VENDING_TICK] = GetConnectedTime(playerid);
-							return 1;
 						}
 					}
 				}
