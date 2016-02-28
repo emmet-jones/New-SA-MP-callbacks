@@ -2,7 +2,7 @@
  *	New SA-MP callbacks by Emmet
  *	Created on Sunday, January 26, 2014 at 11:58 AM.
  *
- *  Last Update: February 25, 2016 @ 10:00 AM.
+ *  Last Update: February 28, 2016 @ 6:19 AM.
 */
 
 // The amount of damage a vehicle must take before being classified as a car crash.
@@ -28,7 +28,7 @@
 #define PLAYER_ACTION_SHOOTING  (1)
 #define PLAYER_ACTION_SWIMMING  (2)
 #define PLAYER_ACTION_SKYDIVING (3)
-	
+
 // Player variables
 enum e_cbPlayerData {
 	e_cbPlayerFlags:e_cbFlags,
@@ -261,8 +261,8 @@ stock IsPlayerSprinting(playerid)
 	;
 
 	GetPlayerKeys(playerid, keys, ud, lr);
-	
-	return (keys & KEY_SPRINT) && ((1222 <= index <= 1236) || index == 1196);
+
+	return ((1222 <= index <= 1236) || (1276 <= index <= 1280) || index == 1196);
 }
 
 stock IsPlayerJumping(playerid)
@@ -522,7 +522,7 @@ public OnGameModeInit()
 public OnPlayerExitVehicle(playerid, vehicleid)
 {
     g_cPlayerInfo[playerid][e_cbVehicle] = INVALID_PLAYER_ID;
-    
+
     #if defined CB_OnPlayerExitVehicle
         return CB_OnPlayerExitVehicle(playerid, vehicleid);
 	#else
@@ -550,7 +550,7 @@ public OnPlayerWeaponShot(playerid, weaponid, hittype, hitid, Float:fX, Float:fY
 		new
 			clip = Callback_GetMaxClip(weaponid),
 			index = weaponid - WEAPON_COLT45;
-			
+
 		g_cPlayerInfo[playerid][e_cbShotCounter][index]++;
 
 		if((g_cPlayerInfo[playerid][e_cbShotCounter][index] - clip) >= MAX_ACCUMULATED_SHOTS)
@@ -673,7 +673,7 @@ public OnPlayerUpdate(playerid)
    				CallLocalFunction("OnPlayerJump", "i", playerid);
 			    g_cPlayerTick[playerid][e_cbLastJump] = GetConnectedTime(playerid);
 			}
-			
+
 		}
 		case PLAYER_STATE_DRIVER:
 		{
@@ -710,7 +710,7 @@ public OnPlayerUpdate(playerid)
 	{
 	    new
 	        amount = g_cPlayerInfo[playerid][e_cbDrunkLevel] - level;
-	
+
 		if(GetPlayerDrunkLevel(playerid) < 100)
 		{
     		SetPlayerDrunkLevel(playerid, 2000);
@@ -745,7 +745,7 @@ public OnPlayerUpdate(playerid)
 	    new
      		animname[32],
        		animlib[32];
-	
+
 	    if(CB_GetPlayerFlag(playerid, e_cbAnimationSet) && g_cPlayerInfo[playerid][e_cbAnimation] != GetPlayerAnimationIndex(playerid))
 	    {
 	        CB_DisableFlag(playerid, e_cbAnimationSet);
@@ -871,7 +871,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		}
 		if(GetPlayerState(playerid) == PLAYER_STATE_ONFOOT)
 		{
-			if(Callback_IsDefined("OnPlayerAiming") && (WEAPON_COLT45 <= weaponid <= WEAPON_CAMERA) && weaponid != WEAPON_BOMB)
+			if((WEAPON_COLT45 <= weaponid <= WEAPON_CAMERA) && weaponid != WEAPON_BOMB)
 			{
 				if(!CB_GetPlayerFlag(playerid, e_cbAiming) && (newkeys & KEY_HANDBRAKE) & KEY_HANDBRAKE)
 				{
@@ -904,7 +904,7 @@ public OnPlayerClickTextDraw(playerid, Text:clickedid)
 			CallLocalFunction("OnPlayerHideCursor", "ii", playerid, g_cPlayerInfo[playerid][e_cbHoverColor]);
 		}
 	}
-	
+
 	#if defined CB_OnPlayerClickTextDraw
 		return CB_OnPlayerClickTextDraw(playerid, clickedid);
 	#else
@@ -1152,4 +1152,3 @@ public Callback_TabCheck()
 #if defined CB_OnPlayerDeath
 	forward CB_OnPlayerDeath(playerid, killerid, reason);
 #endif
- 
