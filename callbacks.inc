@@ -8,7 +8,7 @@
  	  01/26/2014 @ 11:58 AM.
 
 	Last Update:
-	  02/28/2016 @ 8:30 AM
+	  02/29/2016 @ 12:00 AM
 
 	Callbacks:
 	    OnPlayerPause(playerid)
@@ -298,8 +298,8 @@ static
 		{GARAGE_PAYNSPRAY, -1904.3649, 284.2363, 41.0469},
 	    {GARAGE_PAYNSPRAY, 2065.1960, -1831.4946, 13.5469},
 		{GARAGE_PAYNSPRAY, 1025.0665, -1024.4612, 32.1016},
-		{GARAGE_PAYNSPRAY, 487.4250, -1739.0385, 10.8542},
 		{GARAGE_PAYNSPRAY, 720.1285, -457.2187, 16.3359},
+		{GARAGE_PAYNSPRAY, 487.4250, -1739.0385, 10.8542},
 		{GARAGE_PAYNSPRAY, 1974.4723, 2162.3350, 11.0703},
 		{GARAGE_BOMBSHOP,  1849.0271, -1856.3948, 13.3828},
 		{GARAGE_BOMBSHOP,  2005.9357, 2312.9939, 10.8203}
@@ -1236,6 +1236,10 @@ public Callback_TabCheck()
 	}
 }
 
+// --------------------------------------------------
+// Native hooks
+// --------------------------------------------------
+
 #if defined _ALS_CreateVehicle
 	#undef CreateVehicle
 #else
@@ -1278,8 +1282,10 @@ public Callback_TabCheck()
 #define ApplyAnimation          CB_ApplyAnimation
 #define SelectTextDraw          CB_SelectTextDraw
 #define CancelSelectTextDraw    CB_CancelSelectTextDraw
-#define OnFilterScriptInit  	CB_OnFilterScriptInit
-#define OnGameModeInit 			CB_OnGameModeInit
+
+// --------------------------------------------------
+// Callback hooks
+// --------------------------------------------------
 
 #if defined _ALS_OnFilterScriptInit
 	#undef OnFilterScriptInit
@@ -1341,6 +1347,8 @@ public Callback_TabCheck()
 	#define _ALS_OnPlayerDeath
 #endif
 
+#define OnFilterScriptInit  	CB_OnFilterScriptInit
+#define OnGameModeInit 			CB_OnGameModeInit
 #define OnPlayerDisconnect      CB_OnPlayerDisconnect
 #define OnPlayerUpdate 			CB_OnPlayerUpdate
 #define OnPlayerStateChange  	CB_OnPlayerStateChange
