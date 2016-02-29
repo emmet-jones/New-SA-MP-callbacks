@@ -1335,12 +1335,6 @@ public Callback_TabCheck()
 	#define _ALS_OnPlayerTakeDamage
 #endif
 
-#if defined _ALS_OnPlayerDeath
-	#undef OnPlayerDeath
-#else
-	#define _ALS_OnPlayerDeath
-#endif
-
 #define OnFilterScriptInit  	CB_OnFilterScriptInit
 #define OnGameModeInit 			CB_OnGameModeInit
 #define OnPlayerDisconnect      CB_OnPlayerDisconnect
@@ -1350,7 +1344,6 @@ public Callback_TabCheck()
 #define OnPlayerWeaponShot      CB_OnPlayerWeaponShot
 #define OnPlayerClickTextDraw   CB_OnPlayerClickTextDraw
 #define OnPlayerTakeDamage      CB_OnPlayerTakeDamage
-#define OnPlayerDeath           CB_OnPlayerDeath
 
 #if defined CB_OnPlayerUpdate
 	forward CB_OnPlayerUpdate(playerid);
@@ -1386,8 +1379,4 @@ public Callback_TabCheck()
 
 #if defined CB_OnPlayerTakeDamage
 	forward CB_OnPlayerTakeDamage(playerid, issuerid, Float:amount, weaponid, bodypart);
-#endif
-
-#if defined CB_OnPlayerDeath
-	forward CB_OnPlayerDeath(playerid, killerid, reason);
 #endif
