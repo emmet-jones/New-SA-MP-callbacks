@@ -1137,17 +1137,15 @@ public OnPlayerTakeDamage(playerid, issuerid, Float:amount, weaponid, bodypart)
 		}
 	#endif
 
-	#if defined OnPlayerStartBurn
-		if(weaponid == WEAPON_FLAMETHROWER)
-		{
-		    if(!Callback_GetFlag(playerid, e_bBurning))
-		    {
-		        Callback_SetFlag(playerid, e_bBurning, true);
-	        	CallLocalFunction("OnPlayerStartBurn", "i", playerid);
-			}
-			s_aPlayerTickInfo[playerid][e_PLAYER_BURN_TICK] = GetConnectedTime(playerid);
+	if(weaponid == WEAPON_FLAMETHROWER)
+	{
+ 		if(!Callback_GetFlag(playerid, e_bBurning))
+   		{
+     		Callback_SetFlag(playerid, e_bBurning, true);
+      		CallLocalFunction("OnPlayerStartBurn", "i", playerid);
 		}
-	#endif
+		s_aPlayerTickInfo[playerid][e_PLAYER_BURN_TICK] = GetConnectedTime(playerid);
+	}
 
 	#if defined CB_OnPlayerTakeDamage
 		return CB_OnPlayerTakeDamage(playerid, issuerid, amount, weaponid, bodypart);
