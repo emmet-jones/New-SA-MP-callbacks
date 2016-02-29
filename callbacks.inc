@@ -680,9 +680,7 @@ public OnPlayerDisconnect(playerid, reason)
 
 public OnFilterScriptInit()
 {
-	#if defined OnPlayerPause || defined OnPlayerResume
-		SetTimer("Callback_TabCheck", 600, true);
-	#endif
+	SetTimer("Callback_TabCheck", 600, true);
 
 	#if defined CB_OnFilterScriptInit
 	    return CB_OnFilterScriptInit();
@@ -693,9 +691,7 @@ public OnFilterScriptInit()
 
 public OnGameModeInit()
 {
- 	#if defined OnPlayerPause || defined OnPlayerResume
-		SetTimer("Callback_TabCheck", 600, true);
-	#endif
+ 	SetTimer("Callback_TabCheck", 600, true);
 
 	#if defined CB_OnGameModeInit
 	    return CB_OnGameModeInit();
@@ -1219,16 +1215,16 @@ public Callback_TabCheck()
 		            Callback_SetFlag(i, e_bPaused, false);
 				}
 
-				#if defined OnPlayerPause
-					if(!Callback_GetFlag(i, e_bPaused) && (GetConnectedTime(i) - s_aPlayerTickInfo[i][e_PLAYER_LAST_UPDATE]) >= 4000)
-					{
-				    	s_aPlayerTickInfo[i][e_PLAYER_TICK] = GetConnectedTime(i);
-
-						Callback_SetFlag(i, e_bPaused, true);
-
+				if(!Callback_GetFlag(i, e_bPaused) && (GetConnectedTime(i) - s_aPlayerTickInfo[i][e_PLAYER_LAST_UPDATE]) >= 4000)
+				{
+				    #if defined OnPlayerPause
 						CallLocalFunction("OnPlayerPause", "i", i);
-					}
-				#endif
+					#endif
+					
+					s_aPlayerTickInfo[i][e_PLAYER_TICK] = GetConnectedTime(i);
+
+					Callback_SetFlag(i, e_bPaused, true);
+				}
 			}
 		}
 	}
