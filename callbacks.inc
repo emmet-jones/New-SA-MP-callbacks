@@ -1000,7 +1000,7 @@ public OnPlayerStateChange(playerid, newstate, oldstate)
 		}
 		case PLAYER_STATE_ONFOOT:
 		{
-		    if(oldstate == PLAYER_STATE_DRIVER)
+		    if(oldstate == PLAYER_STATE_DRIVER && GetVehicleModel(s_aPlayerInfo[playerid][e_iVehicleID]))
 		    {
 		    	new
 					driverid = Callback_GetDriver(s_aPlayerInfo[playerid][e_iVehicleID]);
