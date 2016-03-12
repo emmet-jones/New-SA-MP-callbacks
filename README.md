@@ -1,3 +1,9 @@
+Notice
+===================
+Support for this release has dropped as I've left SA-MP.
+
+http://pastebin.com/mXGBzwjW
+
 New-SA-MP-callbacks
 ===================
 
