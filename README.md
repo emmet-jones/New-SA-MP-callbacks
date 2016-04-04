@@ -131,6 +131,9 @@ stock GetPlayerPausedTime(playerid);
 
 // Returns the player's FPS amount.
 stock GetPlayerFPS(playerid);
+
+// Returns 1 if the vehicle is upside down
+stock IsVehicleUpsideDown(vehicleid);
 ```
 
 Example
