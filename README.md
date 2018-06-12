@@ -1,10 +1,24 @@
-New-SA-MP-callbacks
-===================
+# New-SA-MP-callbacks
+
+[![sampctl](https://shields.southcla.ws/badge/sampctl-New--SA--MP--callbacks-2f2f2f.svg?style=for-the-badge)](https://github.com/LashaKanteladzeNew-SA-MP-callbacks)
 
 This is a collection of useful callbacks for SA-MP, that works with every SA-MP version.
 
-List of Callbacks
-===================
+## Installation
+
+Simply install to your project:
+
+```bash
+sampctl package install LashaKanteladze/New-SA-MP-callbacks
+```
+
+Include in your code and begin using the library:
+
+```pawn
+#include <callbacks>
+```
+
+## List of Callbacks
 The following callbacks are included with this library:
 
 ```
@@ -84,9 +98,7 @@ forward OnPlayerJump(playerid);
 forward OnPlayerSprint(playerid, status);
 ```
 
-Functions
-===================
-
+## Functions
 External functions for this library:
 
 ```
@@ -133,8 +145,7 @@ stock GetPlayerPausedTime(playerid);
 stock GetPlayerFPS(playerid);
 ```
 
-Example
-===================
+## Example
 
 ```
 public OnPlayerResume(playerid, time)
@@ -152,4 +163,3 @@ public OnPlayerCrashVehicle(playerid, vehicleid, Float:damage)
     SendClientMessage(playerid, 0xFF0000FF, "Learn how to drive, please!");
     return 1;
 }
-```
