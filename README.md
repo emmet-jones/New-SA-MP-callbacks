@@ -1,6 +1,4 @@
-# New-SA-MP-callbacks
-
-[![sampctl](https://shields.southcla.ws/badge/sampctl-New--SA--MP--callbacks-2f2f2f.svg?style=for-the-badge)](https://github.com/LashaKanteladzeNew-SA-MP-callbacks)
+# New-SA-MP-callbacks [![sampctl](https://shields.southcla.ws/badge/sampctl-New--SA--MP--callbacks-2f2f2f.svg?style=for-the-badge)](https://github.com/LashaKanteladzeNew-SA-MP-callbacks)
 
 This is a collection of useful callbacks for SA-MP, that works with every SA-MP version.
 
