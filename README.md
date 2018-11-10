@@ -2,14 +2,14 @@
 
 This is a collection of useful callbacks for SA-MP, that works with every SA-MP version.
 
-[![sampctl](https://shields.southcla.ws/badge/sampctl-New--SA--MP--callbacks-2f2f2f.svg?style=for-the-badge)](https://github.com/LashaKanteladzeNew-SA-MP-callbacks)
+[![sampctl](https://shields.southcla.ws/badge/sampctl-New--SA--MP--callbacks-2f2f2f.svg?style=for-the-badge)](https://github.com/DAKYSKYE/New-SA-MP-callbacks)
 
 ## Installation
 
 Simply install to your project:
 
 ```bash
-sampctl package install LashaKanteladze/New-SA-MP-callbacks
+sampctl package install DAKYSKYE/New-SA-MP-callbacks
 ```
 
 Include in your code and begin using the library:
